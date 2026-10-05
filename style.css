@@ -194,7 +194,7 @@ p { margin: 0; }
 .blob--2 { width: 50vmax; height: 50vmax; background: var(--blob-2); bottom: -24vmax; right: -16vmax; animation: drift 32s ease-in-out infinite alternate-reverse; }
 .blob--3 { width: 34vmax; height: 34vmax; background: var(--blob-3); top: 30%; right: 8%; opacity: .55; animation: drift 38s ease-in-out infinite alternate; }
 
-.hero__moon { position: absolute; top: calc(var(--nav-h) + 6%); right: 9%; width: 46px; height: 46px; color: var(--accent-ink); opacity: .35; }
+.hero__moon { position: absolute; top: calc(var(--nav-h) + 6%); right: 9%; width: 46px; height: 46px; color: var(--accent-ink); opacity: .35; animation: moon 11s ease-in-out infinite; }
 .hero__cloud { position: absolute; color: var(--surface); opacity: .85; filter: drop-shadow(0 6px 14px rgba(0,0,0,.04)); }
 .hero__cloud--1 { width: 120px; height: 60px; top: 22%; left: -140px; animation: cloud 70s linear infinite; }
 .hero__cloud--2 { width: 80px; height: 40px; bottom: 16%; left: -100px; animation: cloud 95s linear infinite; animation-delay: -40s; opacity: .7; }
@@ -202,9 +202,12 @@ p { margin: 0; }
 .particles { position: absolute; inset: 0; }
 .particle {
   position: absolute; bottom: -24px; color: var(--accent);
-  opacity: 0; animation: up linear infinite;
+  opacity: 0; animation: up linear infinite; will-change: transform, opacity;
 }
 .particle svg { width: 100%; height: 100%; }
+.particle--still { animation: none; opacity: var(--o); }
+/* hero scrolled away → freeze its decorations so they cost nothing */
+.hero.is-idle .hero__sky *, .hero.is-idle .heartbeat__line path { animation-play-state: paused; }
 
 .hero__inner { max-width: 760px; width: 100%; display: flex; flex-direction: column; align-items: center; }
 .hero__couple { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
@@ -612,6 +615,7 @@ p { margin: 0; }
 .confetti i svg { width: 100%; height: 100%; }
 
 /* ---------- Animations ---------- */
+@keyframes moon { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-6px) rotate(-4deg); } }
 @keyframes drift { from { transform: translate(0, 0) scale(1); } to { transform: translate(6vw, 4vh) scale(1.08); } }
 @keyframes cloud { from { transform: translateX(0); } to { transform: translateX(calc(100vw + 260px)); } }
 @keyframes up { 0% { transform: translateY(0) translateX(0) rotate(0); opacity: 0; } 10% { opacity: var(--o, .5); } 90% { opacity: var(--o, .5); } 100% { transform: translateY(-105vh) translateX(var(--x, 20px)) rotate(var(--r, 40deg)); opacity: 0; } }
@@ -625,7 +629,7 @@ p { margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
-  .particles, .hero__cloud { display: none; }
+  .hero__cloud { display: none; }
   .reveal { opacity: 1; transform: none; }
 }
 
@@ -644,6 +648,11 @@ p { margin: 0; }
 
 @media (max-width: 640px) {
   body { font-size: 15.5px; }
+  /* decorations on phones: same pieces as desktop, sized and placed for a small screen */
+  .hero__moon { top: calc(var(--nav-h) + env(safe-area-inset-top) + 4px); right: 6%; width: 34px; height: 34px; opacity: .4; }
+  .hero__cloud--1 { width: 84px; height: 42px; top: 15%; }
+  .hero__cloud--2 { width: 60px; height: 30px; bottom: 7%; }
+  .blob { filter: blur(44px); }   /* a smaller blur radius is much cheaper to paint on a phone */
   .hero { padding-bottom: 72px; }
   .hero__scroll { display: none; }
   .countdown__units { padding: 12px 0; border-radius: 18px; }

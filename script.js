@@ -569,16 +569,26 @@ function renderProgress() {
 /* ---------- Floating particles ---------- */
 function particles() {
   const box = $("#particles");
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const n = innerWidth < 640 ? 6 : 10;
+  // With "Reduce motion" on, keep a few still sparkles instead of none at all.
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const phone = innerWidth < 640;
+  const n = phone ? 9 : 10;
   const shapes = ["i-heart", "i-star", "i-sparkle", "i-heart"];
   for (let i = 0; i < n; i++) {
     const el = document.createElement("span");
-    const size = 6 + Math.random() * 10;
-    el.className = "particle";
-    el.style.cssText = `left:${Math.random() * 100}%;width:${size}px;height:${size}px;animation-duration:${16 + Math.random() * 18}s;animation-delay:${-Math.random() * 30}s;--x:${(Math.random() - .5) * 120}px;--r:${(Math.random() - .5) * 120}deg;--o:${.25 + Math.random() * .4}`;
+    const size = (phone ? 8 : 6) + Math.random() * (phone ? 8 : 10);
+    // spread evenly across the width (with a little jitter) so a small screen never gets clumps
+    const left = (i + .2 + Math.random() * .6) / n * 100;
+    el.className = still ? "particle particle--still" : "particle";
+    el.style.cssText = `left:${left}%;width:${size}px;height:${size}px;animation-duration:${16 + Math.random() * 18}s;animation-delay:${-Math.random() * 30}s;--x:${(Math.random() - .5) * (phone ? 70 : 120)}px;--r:${(Math.random() - .5) * 120}deg;--o:${(phone ? .35 : .25) + Math.random() * .35}` +
+      (still ? `;bottom:${12 + Math.random() * 76}%` : "");
     el.innerHTML = `<svg><use href="#${shapes[i % shapes.length]}"/></svg>`;
     box.appendChild(el);
+  }
+  // Pause every hero animation while the hero is scrolled out of view (saves battery).
+  if ("IntersectionObserver" in window) {
+    const hero = $(".hero");
+    new IntersectionObserver(([en]) => hero.classList.toggle("is-idle", !en.isIntersecting)).observe(hero);
   }
 }
 
@@ -592,6 +602,8 @@ function applyGender(celebrate = false) {
   $$("#genderSeg button, #genderSeg2 button").forEach(b => b.setAttribute("aria-checked", String(b.dataset.gender === g)));
 
   const hello = $("#heroHello");
+  // Top-left brand: "Baby Adel" → "Yassin Adel" / "Lily Adel" once we know.
+  $("#navFirst").textContent = g === "boy" ? CONFIG.boyName : g === "girl" ? CONFIG.girlName : "Baby";
   if (g === "unknown") {
     hello.hidden = true;
     $("#heroTitle").textContent = "Our Little Miracle";
@@ -601,7 +613,7 @@ function applyGender(celebrate = false) {
     const name = g === "boy" ? CONFIG.boyName : CONFIG.girlName;
     hello.hidden = false;
     hello.textContent = `Hello, ${name} ${g === "boy" ? "💙" : "🩷"}`;
-    $("#heroTitle").textContent = `Baby ${CONFIG.babySurname}`;
+    $("#heroTitle").textContent = CONFIG.babySurname;   // "Hello, Yassin 💙" above, then "Adel"
     $("#whoLead").textContent = g === "boy" ? "It's a boy!" : "It's a girl!";
     $("#whoNote").innerHTML = `Welcome to the family, little ${esc(name)} ${esc(CONFIG.babySurname)}. We already love you more than words.`;
   }
