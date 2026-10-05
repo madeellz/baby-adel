@@ -502,7 +502,7 @@ function fruitSVG(entry) {
 function bindNames() {
   const map = { mother: CONFIG.motherName, father: CONFIG.fatherName, surname: CONFIG.babySurname, boy: CONFIG.boyName, girl: CONFIG.girlName };
   $$("[data-bind]").forEach(el => { const v = map[el.dataset.bind]; if (v) el.textContent = v; });
-  document.title = `Baby ${CONFIG.babySurname} · Our Little Miracle`;
+  document.title = `Baby ${CONFIG.babySurname} ❤️`;   // applyGender() then sets the final title
 }
 
 function toast(msg) {
@@ -603,17 +603,22 @@ function applyGender(celebrate = false) {
 
   const hello = $("#heroHello");
   // Top-left brand: "Baby Adel" → "Yassin Adel" / "Lily Adel" once we know.
-  $("#navFirst").textContent = g === "boy" ? CONFIG.boyName : g === "girl" ? CONFIG.girlName : "Baby";
+  const first = g === "boy" ? CONFIG.boyName : g === "girl" ? CONFIG.girlName : "Baby";
+  const heart = g === "boy" ? "💙" : g === "girl" ? "🩷" : "❤️";
+  $("#navFirst").textContent = first;
+  document.title = `${first} ${CONFIG.babySurname} ${heart}`;   // tab title: "Baby Adel ❤️" / "Yassin Adel 💙" / "Lily Adel 🩷"
+  $("#heroTitle").classList.toggle("is-name", g !== "unknown");
   if (g === "unknown") {
     hello.hidden = true;
     $("#heroTitle").textContent = "Our Little Miracle";
     $("#whoLead").textContent = "We're waiting to meet you…";
     $("#whoNote").innerHTML = `One day soon, we'll know whether we're welcoming our little ${esc(CONFIG.boyName)} or our little ${esc(CONFIG.girlName)}.`;
   } else {
-    const name = g === "boy" ? CONFIG.boyName : CONFIG.girlName;
+    const name = first;
+    // Small "Hello," above, then the full name as the big title: "Yassin Adel 💙"
     hello.hidden = false;
-    hello.textContent = `Hello, ${name} ${g === "boy" ? "💙" : "🩷"}`;
-    $("#heroTitle").textContent = CONFIG.babySurname;   // "Hello, Yassin 💙" above, then "Adel"
+    hello.textContent = "Hello,";
+    $("#heroTitle").innerHTML = `${esc(name)} ${esc(CONFIG.babySurname)} <span class="hero__heart" aria-hidden="true">${heart}</span>`;
     $("#whoLead").textContent = g === "boy" ? "It's a boy!" : "It's a girl!";
     $("#whoNote").innerHTML = `Welcome to the family, little ${esc(name)} ${esc(CONFIG.babySurname)}. We already love you more than words.`;
   }
