@@ -606,6 +606,7 @@ function applyGender(celebrate = false) {
   const first = g === "boy" ? CONFIG.boyName : g === "girl" ? CONFIG.girlName : "Baby";
   const heart = g === "boy" ? "💙" : g === "girl" ? "🩷" : "❤️";
   $("#navFirst").textContent = first;
+  $("#letterFirst").textContent = first;   // "Dear Baby Adel…" → "Dear Yassin Adel…" / "Dear Lily Adel…"
   document.title = `${first} ${CONFIG.babySurname} ${heart}`;   // tab title: "Baby Adel ❤️" / "Yassin Adel 💙" / "Lily Adel 🩷"
   $("#heroTitle").classList.toggle("is-name", g !== "unknown");
   if (g === "unknown") {
