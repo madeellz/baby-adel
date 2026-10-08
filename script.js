@@ -231,26 +231,82 @@ const WEEKS = [
     mama: "The doctor will guide what happens next if baby needs a little extra time." }
 ];
 
+/* Extra detail for each week: Arabic name of the fruit/vegetable, what is being
+   built right now, and what baby can sense. General, approximate information. */
+const WEEK_EXTRA = {
+  7:  { ar: "توت أزرق",          grow: "The brain, the face, and tiny arm and leg buds.", sense: "Nothing yet — the nervous system is only just forming." },
+  8:  { ar: "توت العليق",        grow: "Fingers and toes, the upper lip and the tip of the nose.", sense: "Not yet — the first tiny movements are simple reflexes." },
+  9:  { ar: "حبة عنب",           grow: "Eyelids, ears and the first muscles.", sense: "Not yet, but nerves are starting to connect to muscles." },
+  10: { ar: "فراولة",            grow: "Fingernails, tooth buds, and organs that keep maturing.", sense: "The skin around the mouth begins to respond to touch." },
+  11: { ar: "ليمونة خضراء",      grow: "Bones begin to harden; hands open and close.", sense: "Touch sensitivity is spreading out from the face." },
+  12: { ar: "برقوق",             grow: "The kidneys start working; reflexes like curling the toes.", sense: "The palms and soles start to sense touch." },
+  13: { ar: "خوخة",              grow: "Vocal cords, and a body that's catching up with the head.", sense: "Touch sensitivity keeps spreading across the body." },
+  14: { ar: "ليمونة",            grow: "Fine downy hair (lanugo) and little facial expressions.", sense: "Most of the body now responds to touch." },
+  15: { ar: "تفاحة",             grow: "A stronger skeleton and taste buds.", sense: "May sense light through closed eyelids." },
+  16: { ar: "أفوكادو",           grow: "Eye movements and a strongly pumping heart.", sense: "The eyes can make slow movements." },
+  17: { ar: "كمثرى",             grow: "First fat stores; cartilage turning into bone.", sense: "Feels its own movements and the soft walls around it." },
+  18: { ar: "بطاطا حلوة",        grow: "Ears in their final position; nerves getting a protective coating.", sense: "Hearing begins — the first sounds may come through." },
+  19: { ar: "مانجو",             grow: "A creamy protective coating (vernix) on the skin.", sense: "Brain areas for hearing, taste, smell, sight and touch are developing." },
+  20: { ar: "موزة",              grow: "Swallowing practice and stronger kicks.", sense: "May taste flavours from {mother}'s meals in the fluid around them." },
+  21: { ar: "جزرة",              grow: "Coordinated movements; bone marrow starts making blood cells.", sense: "Movements are becoming more deliberate." },
+  22: { ar: "بابايا",            grow: "Lips, eyebrows and a stronger grip.", sense: "Touch is clearer — baby may hold the umbilical cord." },
+  23: { ar: "جريب فروت",         grow: "Lungs preparing for breathing; skin still thin.", sense: "May react to loud sounds." },
+  24: { ar: "كوز ذرة",           grow: "Lungs start making surfactant; the inner ear (balance) develops.", sense: "Starting to sense movement and position." },
+  25: { ar: "قرنبيط",            grow: "Baby fat and hair growing.", sense: "May respond to your voices and to a hand on the bump." },
+  26: { ar: "خسّة",              grow: "The eyes begin to open.", sense: "Reacts to sounds — your voices are becoming familiar." },
+  27: { ar: "كرنب",              grow: "Regular sleep and wake times; a very busy brain.", sense: "Recognises familiar sounds more and more." },
+  28: { ar: "باذنجانة",          grow: "Eyelashes and billions of new brain connections.", sense: "Can blink, and may notice bright light through the bump." },
+  29: { ar: "قرع الجوز",         grow: "Muscles and lungs maturing; the head growing.", sense: "Kicks and stretches in response to sound and touch." },
+  30: { ar: "جوزة هند",          grow: "The brain's surface begins to fold.", sense: "The eyes can detect light." },
+  31: { ar: "أناناسة",           grow: "Fast brain growth and steady weight gain.", sense: "May turn toward light and sounds." },
+  32: { ar: "حزمة كيل",          grow: "Nails grown in; practising breathing.", sense: "The senses are well developed and still maturing." },
+  33: { ar: "كنتالوب",           grow: "Bones hardening (the skull stays soft); the immune system builds.", sense: "The pupils can react to light." },
+  34: { ar: "شمّامة",            grow: "Nervous system and lungs maturing.", sense: "May recognise your voices." },
+  35: { ar: "خس روماني",         grow: "Most growth is weight now; the kidneys are fully developed.", sense: "Rolls and stretches in a cosy space." },
+  36: { ar: "كرّاث",             grow: "Shedding the downy hair and adding fat.", sense: "Hearing is well developed." },
+  37: { ar: "حزمة سلق",          grow: "Practising breathing, sucking and grasping.", sense: "Getting ready to know your voices from day one." },
+  38: { ar: "بطيخة صغيرة",       grow: "Organs ready for life outside.", sense: "A surprisingly firm grip." },
+  39: { ar: "يقطينة صغيرة",      grow: "Adding a little more fat to stay warm.", sense: "Hearing, touch and taste are ready." },
+  40: { ar: "بطيخة",             grow: "Fully developed and ready to meet you.", sense: "Already familiar with {mother}'s voice." }
+};
+
+/* Milestones in rough order. `group` draws a heading; `week` milestones show the
+   calendar date that week begins. IDs are what saved ticks are stored under, so
+   never rename an existing one. */
 const MILESTONES = [
-  { id: "positive",  title: "First positive test",            hint: "The moment everything changed" },
+  { id: "positive",  group: "First trimester", title: "First positive test", hint: "The moment everything changed" },
+  { id: "tellfam",   title: "Telling our families",           hint: "Sharing the happiest news" },
   { id: "doctor",    title: "First doctor appointment",       hint: "Usually around weeks 6–10" },
   { id: "ultra1",    title: "First ultrasound",               hint: "Often in the first trimester" },
   { id: "heartbeat", title: "First heartbeat",                hint: "That tiny flicker on the screen" },
   { id: "hear",      title: "First time hearing the heartbeat", hint: "The best sound in the world" },
   { id: "see",       title: "First time seeing baby",         hint: "Hello, little one" },
+  { id: "ntscan",    title: "First-trimester screening scan", hint: "Often offered around weeks 11–14" },
+  { id: "tri2",      group: "Second trimester", title: "Second trimester begins", hint: "Week 14", week: 14 },
+  { id: "bumpshow",  title: "The bump starts to show",        hint: "Often somewhere in the second trimester" },
   { id: "sex",       title: "Finding out: {boy} or {girl}?",  hint: "From around week 10, depending on the test" },
   { id: "anatomy",   title: "Anatomy scan",                   hint: "Usually around weeks 18–22" },
+  { id: "half",      title: "Halfway there",                  hint: "Week 20", week: 20 },
   { id: "kicks",     title: "First kicks",                    hint: "Often between weeks 16–25" },
+  { id: "papakick",  title: "{father} feels a kick",          hint: "Usually a few weeks after {mother} first feels them" },
+  { id: "glucose",   title: "Glucose screening test",         hint: "Usually around weeks 24–28" },
+  { id: "tri3",      group: "Third trimester", title: "Final trimester", hint: "Week 28", week: 28 },
+  { id: "photoshoot", title: "Maternity photoshoot",          hint: "Many couples choose weeks 28–34" },
   { id: "nursery",   title: "Preparing the nursery",          hint: "A little room for a little person" },
   { id: "shower",    title: "Baby shower",                    hint: "Celebrating with family & friends" },
+  { id: "hospital",  title: "Choosing the hospital",          hint: "Visit, ask questions, plan the route" },
+  { id: "carseat",   title: "Car seat installed",             hint: "Ready for the first ride home" },
+  { id: "headdown",  title: "Baby settles head-down",         hint: "Many babies turn by around weeks 32–36" },
   { id: "bag",       title: "Hospital bag packed",            hint: "Ideally by around week 36" },
-  { id: "tri3",      title: "Final trimester",                hint: "Week 28", week: 28 },
   { id: "w36",       title: "36 weeks",                       hint: "The home stretch", week: 36 },
   { id: "w37",       title: "37 weeks",                       hint: "Early term", week: 37 },
   { id: "w38",       title: "38 weeks",                       hint: "Any day now…", week: 38 },
   { id: "w39",       title: "39 weeks",                       hint: "Full term", week: 39 },
   { id: "w40",       title: "40 weeks",                       hint: "Due date week", week: 40 },
-  { id: "due",       title: "Due date",                       hint: "", due: true }
+  { id: "due",       title: "Due date",                       hint: "", due: true },
+  { id: "birth",     group: "Meeting you", title: "Welcome to the world", hint: "The day we finally meet you" },
+  { id: "hold",      title: "First time holding you",         hint: "The moment we'll never forget" },
+  { id: "home",      title: "First day at home",              hint: "Our family of three" }
 ];
 
 const PREP = [
@@ -297,14 +353,17 @@ const NOTES = [
   "I fall for you a little more every week."
 ];
 
-const MEMORIES = [
-  { id: "ultrasound", title: "First ultrasound" },
-  { id: "bump",       title: "First bump photo" },
-  { id: "family",     title: "First family photo" },
-  { id: "nursery",    title: "Nursery" },
-  { id: "shower",     title: "Baby shower" },
-  { id: "hospital",   title: "Hospital day" },
-  { id: "first",      title: "First photo of baby" }
+/* Photo albums. `prompt` is shown on the empty "add the first one" tile.
+   The first seven IDs match the old single-photo slots, so old photos move in. */
+const ALBUMS = [
+  { id: "ultrasound", title: "Ultrasounds", prompt: "First ultrasound" },
+  { id: "bump",       title: "Bump",        prompt: "First bump photo" },
+  { id: "family",     title: "Family",      prompt: "First family photo" },
+  { id: "nursery",    title: "Nursery",     prompt: "The nursery" },
+  { id: "shower",     title: "Baby shower", prompt: "Baby shower" },
+  { id: "hospital",   title: "Hospital",    prompt: "Hospital day" },
+  { id: "first",      title: "Baby",        prompt: "First photo of baby" },
+  { id: "everyday",   title: "Everyday",    prompt: "Little everyday moments" }
 ];
 
 /* ======================= FRUIT ILLUSTRATIONS (SVG) ======================= */
@@ -673,6 +732,13 @@ function showWeek(w, scroll = true) {
   $("#weekNum").textContent = w;
   $("#weekTri").textContent = w < 14 ? "First trimester" : w < 28 ? "Second trimester" : "Third trimester";
   $("#weekSize").textContent = `${isNow ? "Your little one is" : w < p.week ? "Baby was" : "Baby will be"} around the size of ${entry.name}.`;
+  const extra = WEEK_EXTRA[w] || {};
+  // "a bunch of kale" → "Bunch of kale"
+  const label = entry.name.replace(/^an? /, "");
+  $("#weekFruitName").textContent = label.charAt(0).toUpperCase() + label.slice(1);
+  $("#weekFruitAr").textContent = extra.ar || "";
+  $("#weekGrow").textContent = fill(extra.grow || "");
+  $("#weekSense").textContent = fill(extra.sense || "");
   $("#weekMeasure").textContent = `≈ ${entry.cm} cm ${w < 20 ? "crown to rump" : "head to heel"} · ${entry.g}`;
   $("#weekBaby").textContent = fill(entry.baby);
   $("#weekMama").textContent = fill(entry.mama);
@@ -686,6 +752,15 @@ function showWeek(w, scroll = true) {
 }
 
 /* ---------- Milestones ---------- */
+// Saved milestone dates are "YYYY-MM-DD" (older saves were full timestamps — both work).
+const msDate = (v) => parseDate(v) || new Date(v);
+// Which pregnancy week a calendar date fell in, e.g. "wk 7".
+function weekAt(date) {
+  const due = getDueDate(); if (!due) return "";
+  const g = 280 - calendarDaysBetween(new Date(date.getFullYear(), date.getMonth(), date.getDate()), due);
+  return g >= 0 && g < 42 * 7 ? `wk ${Math.floor(g / 7)}` : "";
+}
+
 function renderMilestones() {
   const done = store.get("milestones", {});
   const p = pregnancy();
@@ -699,9 +774,14 @@ function renderMilestones() {
       : m.due ? fmtDate(p.due)
       : m.week ? `${m.hint} · from ${fmtDate(weekStart(p, m.week), short)}`
       : fill(m.hint);
-    const state = d ? `<span class="ms__state">✓ ${fmtDate(new Date(d), { day: "numeric", month: "short" })}</span>` : "";
-    return `<li class="ms ${d ? "is-done" : ""} ${m.id === nextId ? "is-next" : ""}" data-id="${m.id}">
-      <button type="button" aria-pressed="${!!d}">
+    let state = "";
+    if (d) {
+      const dt = msDate(d), wk = weekAt(dt);
+      state = `<span class="ms__state">✓ ${fmtDate(dt, short)}${wk ? ` · ${wk}` : ""}</span>`;
+    }
+    const head = m.group ? `<li class="ms-group" aria-hidden="true"><span>${esc(m.group)}</span></li>` : "";
+    return `${head}<li class="ms ${d ? "is-done" : ""} ${m.id === nextId ? "is-next" : ""}" data-id="${m.id}">
+      <button type="button" aria-haspopup="dialog" aria-label="${esc(fill(m.title))}${d ? ", done" : ""} — choose date">
         <span class="ms__dot"><svg><use href="#i-check"/></svg></span>
         <span class="ms__main"><span><span class="ms__title">${esc(fill(m.title))}</span><br><span class="ms__sub">${esc(hint)}</span></span>
         ${state}</span>
@@ -710,18 +790,50 @@ function renderMilestones() {
   const n = Object.keys(done).filter(k => MILESTONES.some(m => m.id === k)).length;
   $("#msCount").textContent = `${n} of ${MILESTONES.length}`;
 }
+
+/* Tapping a milestone opens a small sheet to pick the day it happened. */
 function initMilestones() {
   renderMilestones();
-  $("#milestoneList").addEventListener("click", e => {
-    const li = e.target.closest(".ms"); if (!li) return;
+  const sheet = $("#msSheet"), input = $("#msDateInput");
+  let openId = null, lastFocus = null;
+  const close = () => { sheet.hidden = true; document.body.style.overflow = ""; lastFocus && lastFocus.focus(); };
+  const save = (id, value) => {
     const done = store.get("milestones", {});
-    const id = li.dataset.id;
-    if (done[id]) delete done[id]; else done[id] = new Date().toISOString();
+    if (value) done[id] = value; else delete done[id];
     store.set("milestones", done);
     renderMilestones();
-    const fresh = $(`.ms[data-id="${id}"]`);
-    if (done[id]) { fresh.classList.add("pop"); toast("Moment saved ❤️"); }
+    if (value) { const fresh = $(`.ms[data-id="${id}"]`); fresh && fresh.classList.add("pop"); toast("Moment saved ❤️"); }
+  };
+
+  $("#milestoneList").addEventListener("click", e => {
+    const li = e.target.closest(".ms"); if (!li) return;
+    openId = li.dataset.id;
+    const m = MILESTONES.find(x => x.id === openId);
+    const done = store.get("milestones", {});
+    const p = pregnancy();
+    // Default: the saved date, else that week's start (if already reached), else today.
+    let def = done[openId] ? msDate(done[openId]) : startOfToday();
+    if (!done[openId] && p && m.week && weekStart(p, m.week) <= startOfToday()) def = weekStart(p, m.week);
+    if (!done[openId] && p && m.due && p.due <= startOfToday()) def = p.due;
+    input.value = toISO(def);
+    input.max = toISO(startOfToday());
+    $("#msSheetTitle").textContent = fill(m.title);
+    $("#msSheetHint").textContent = fill(m.hint) || "";
+    $("#msRemove").hidden = !done[openId];
+    lastFocus = document.activeElement;
+    sheet.hidden = false; document.body.style.overflow = "hidden";
+    input.focus();
   });
+  $("#msSave").addEventListener("click", () => {
+    const v = input.value;
+    if (!parseDate(v)) { toast("Please choose a date"); return; }
+    if (parseDate(v) > startOfToday()) { toast("That date is in the future"); return; }
+    save(openId, v); close();
+  });
+  $("#msToday").addEventListener("click", () => { save(openId, toISO(startOfToday())); close(); });
+  $("#msRemove").addEventListener("click", () => { save(openId, null); close(); toast("Milestone cleared"); });
+  $$("[data-ms-close]", sheet).forEach(b => b.addEventListener("click", close));
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !sheet.hidden) close(); });
 }
 
 /* ---------- Checklists (shopping + papa) ---------- */
@@ -849,58 +961,245 @@ function download(name, content, type) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1500);
 }
 
-/* ---------- Memories (photos saved on this device) ---------- */
-let pendingMemory = null;
-function renderMemories() {
-  $("#memoryGrid").innerHTML = MEMORIES.map(m => {
-    const data = store.get("mem." + m.id, null);
-    if (data && data.img) {
-      return `<figure class="memory" data-id="${m.id}"><img src="${data.img}" alt="${esc(m.title)}" loading="lazy" data-zoom>
-        <figcaption class="memory__cap"><span><b>${esc(m.title)}</b><small>${fmtDate(new Date(data.at), { day: "numeric", month: "short", year: "numeric" })}</small></span>
-        <span class="memory__menu"><button data-change="${m.id}">Change</button><button data-remove="${m.id}">Remove</button></span></figcaption></figure>`;
-    }
-    return `<figure class="memory" data-id="${m.id}"><button class="memory__add" data-change="${m.id}">
-      <span class="memory__icon"><svg><use href="#i-camera"/></svg></span>
-      <span class="memory__title">${esc(m.title)}</span><span class="memory__cta">Add photo</span></button></figure>`;
+/* ---------- Memories: a photo album saved on this device ----------
+   Photos live in IndexedDB (room for hundreds of photos; localStorage only
+   fits a handful). Each photo keeps a full-size copy (max 2000px) and a small
+   thumbnail for the grid.                                                   */
+const photoDB = (() => {
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = indexedDB.open("babyAdel", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("photos", { keyPath: "id" });
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }));
+  const run = async (mode, fn) => {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const t = db.transaction("photos", mode), req = fn(t.objectStore("photos"));
+      t.oncomplete = () => res(req ? req.result : undefined);
+      t.onerror = t.onabort = () => rej(t.error);
+    });
+  };
+  return {
+    all:   () => run("readonly", s => s.getAll()),
+    put:   (rec) => run("readwrite", s => s.put(rec)),
+    del:   (id) => run("readwrite", s => s.delete(id)),
+    clear: () => run("readwrite", s => s.clear())
+  };
+})();
+
+const loadImage = (src) => new Promise((res, rej) => {
+  const img = new Image();
+  img.onload = () => res(img); img.onerror = () => rej(new Error("unreadable")); img.src = src;
+});
+const toJpeg = (img, max, q) => new Promise((res, rej) => {
+  const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement("canvas");
+  c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  c.toBlob(b => b ? res(b) : rej(new Error("encode")), "image/jpeg", q);
+});
+// File, Blob or data: URL → { full, thumb } JPEG blobs
+async function shrink(src) {
+  const url = typeof src === "string" ? src : URL.createObjectURL(src);
+  try {
+    const img = await loadImage(url);
+    return { full: await toJpeg(img, 2000, .85), thumb: await toJpeg(img, 480, .78) };
+  } finally { if (typeof src !== "string") URL.revokeObjectURL(url); }
+}
+const blobToDataURL = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(b); });
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const albumTitle = (id) => (ALBUMS.find(a => a.id === id) || ALBUMS[ALBUMS.length - 1]).title;
+
+const gallery = { photos: [], album: "all", urls: new Map(), list: [], at: -1, fullUrl: null, ready: false };
+const sortPhotos = () => gallery.photos.sort((a, b) => (b.taken || "").localeCompare(a.taken || "") || b.added - a.added);
+const thumbURL = (p) => {
+  if (!gallery.urls.has(p.id)) gallery.urls.set(p.id, URL.createObjectURL(p.thumb));
+  return gallery.urls.get(p.id);
+};
+const visiblePhotos = () => gallery.album === "all" ? gallery.photos : gallery.photos.filter(p => p.album === gallery.album);
+
+function renderGallery() {
+  const counts = {};
+  gallery.photos.forEach(p => { counts[p.album] = (counts[p.album] || 0) + 1; });
+  $("#albumChips").innerHTML = [{ id: "all", title: "All" }, ...ALBUMS].map(a => {
+    const n = a.id === "all" ? gallery.photos.length : counts[a.id] || 0;
+    return `<button role="tab" data-album="${a.id}" aria-selected="${gallery.album === a.id}">${esc(a.title)}${n ? `<small>${n}</small>` : ""}</button>`;
   }).join("");
+
+  const list = visiblePhotos();
+  let html = list.map((p, i) => {
+    const wk = p.taken ? weekAt(parseDate(p.taken)) : "";
+    return `<button class="photo" data-i="${i}" aria-label="Open photo${p.caption ? ": " + esc(p.caption) : ""}">
+      <img src="${thumbURL(p)}" alt="" loading="lazy">
+      ${wk ? `<span class="photo__wk">${wk}</span>` : ""}
+      ${p.caption ? `<span class="photo__cap">${esc(p.caption)}</span>` : ""}</button>`;
+  }).join("");
+  // Gentle prompts for moments that don't have a photo yet
+  const empty = gallery.album === "all" ? ALBUMS.filter(a => !counts[a.id]) : list.length ? [] : ALBUMS.filter(a => a.id === gallery.album);
+  html += empty.map(a => `<button class="photo photo--add" data-add="${a.id}">
+      <span class="photo__icon"><svg><use href="#i-camera"/></svg></span>
+      <span class="photo__prompt">${esc(a.prompt)}</span><span class="photo__cta">Add photos</span></button>`).join("");
+  $("#albumGrid").innerHTML = html;
+  updateStorageNote();
 }
-function compress(file) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const max = 1100, k = Math.min(1, max / Math.max(img.width, img.height));
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url);
-      resolve(c.toDataURL("image/jpeg", .78));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("unreadable")); };
-    img.src = url;
+
+async function updateStorageNote() {
+  const n = gallery.photos.length;
+  let txt = n ? `${n} ${n === 1 ? "photo" : "photos"} saved on this device` : "Photos are saved privately on this device";
+  try {
+    if (n && navigator.storage && navigator.storage.estimate) {
+      const { usage } = await navigator.storage.estimate();
+      if (usage) txt += ` · about ${Math.max(1, Math.round(usage / 1048576))} MB used`;
+    }
+  } catch {}
+  $("#albumStorage").textContent = txt + ".";
+}
+
+async function addPhotos(files, album) {
+  files = [...files].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp)$/i.test(f.name));
+  if (!files.length) return;
+  const prog = $("#albumProgress");
+  prog.hidden = false;
+  let ok = 0, failed = 0;
+  for (const [i, f] of files.entries()) {
+    prog.textContent = `Adding photo ${i + 1} of ${files.length}…`;
+    try {
+      const { full, thumb } = await shrink(f);
+      const rec = { id: newId(), album, caption: "", taken: toISO(new Date(f.lastModified || Date.now())), added: Date.now(), full, thumb };
+      await photoDB.put(rec);
+      gallery.photos.push(rec); ok++;
+    } catch (e) { console.warn("Photo not added", f.name, e); failed++; }
+  }
+  prog.hidden = true;
+  sortPhotos(); renderGallery();
+  // Ask the browser not to clear these photos when space runs low
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
+  toast(failed ? `${ok} added · ${failed} couldn't be opened (try JPG or PNG)` : `${ok} ${ok === 1 ? "photo" : "photos"} added ❤️`);
+}
+
+/* ---- Full-screen viewer ---- */
+function openViewer(i) {
+  gallery.list = visiblePhotos().slice();
+  gallery.at = i;
+  $("#viewerAlbum").innerHTML = ALBUMS.map(a => `<option value="${a.id}">${esc(a.title)}</option>`).join("");
+  showViewerPhoto();
+  $("#viewer").hidden = false; document.body.style.overflow = "hidden";
+  $("#viewer [data-v=close]").focus();
+}
+function closeViewer() {
+  $("#viewer").hidden = true; document.body.style.overflow = "";
+  if (gallery.fullUrl) { URL.revokeObjectURL(gallery.fullUrl); gallery.fullUrl = null; }
+  $("#viewerImg").removeAttribute("src");
+}
+function showViewerPhoto() {
+  const p = gallery.list[gallery.at]; if (!p) return closeViewer();
+  if (gallery.fullUrl) URL.revokeObjectURL(gallery.fullUrl);
+  gallery.fullUrl = URL.createObjectURL(p.full);
+  $("#viewerImg").src = gallery.fullUrl;
+  $("#viewerCaption").value = p.caption || "";
+  $("#viewerAlbum").value = p.album;
+  $("#viewerDate").value = p.taken || "";
+  $("#viewerDate").max = toISO(startOfToday());
+  const wk = p.taken ? weekAt(parseDate(p.taken)) : "";
+  $("#viewerWeek").textContent = wk ? wk.replace("wk", "Week") : "";
+  $("#viewerCount").textContent = `${gallery.at + 1} / ${gallery.list.length}`;
+  $("#viewer [data-v=prev]").disabled = gallery.at <= 0;
+  $("#viewer [data-v=next]").disabled = gallery.at >= gallery.list.length - 1;
+}
+const stepViewer = (d) => { const n = gallery.at + d; if (n >= 0 && n < gallery.list.length) { gallery.at = n; showViewerPhoto(); } };
+async function updateViewerPhoto(patch) {
+  const p = gallery.list[gallery.at]; if (!p) return;
+  Object.assign(p, patch);
+  try { await photoDB.put(p); } catch { toast("Couldn't save that change."); }
+  sortPhotos(); renderGallery();
+}
+
+async function migrateOldMemories() {
+  // Photos from the old one-per-moment version were stored in localStorage
+  for (const a of ALBUMS) {
+    const old = store.get("mem." + a.id, null);
+    if (!old || !old.img) continue;
+    try {
+      const { full, thumb } = await shrink(old.img);
+      await photoDB.put({ id: newId(), album: a.id, caption: "", taken: toISO(new Date(old.at || Date.now())), added: old.at || Date.now(), full, thumb });
+      store.del("mem." + a.id);
+    } catch (e) { console.warn("Could not move old photo", a.id, e); }
+  }
+}
+
+async function initMemories() {
+  const input = $("#photoInput");
+  let target = "everyday";
+  const pick = (album) => { target = album; input.value = ""; input.click(); };
+
+  $("#albumChips").addEventListener("click", e => {
+    const b = e.target.closest("[data-album]"); if (!b) return;
+    gallery.album = b.dataset.album; renderGallery();
   });
-}
-function initMemories() {
-  renderMemories();
-  const input = $("#memoryInput");
-  $("#memoryGrid").addEventListener("click", e => {
-    const ch = e.target.closest("[data-change]"), rm = e.target.closest("[data-remove]"), zoom = e.target.closest("[data-zoom]");
-    if (ch) { pendingMemory = ch.dataset.change; input.value = ""; input.click(); }
-    else if (rm) { if (confirm("Remove this photo from this device?")) { store.del("mem." + rm.dataset.remove); renderMemories(); } }
-    else if (zoom) {
-      const lb = document.createElement("div"); lb.className = "lightbox";
-      lb.innerHTML = `<img src="${zoom.src}" alt="${esc(zoom.alt)}">`;
-      lb.addEventListener("click", () => lb.remove()); document.body.appendChild(lb);
+  $("#addPhotos").addEventListener("click", () => pick(gallery.album === "all" ? "everyday" : gallery.album));
+  $("#albumGrid").addEventListener("click", e => {
+    const add = e.target.closest("[data-add]"); if (add) return pick(add.dataset.add);
+    const ph = e.target.closest("[data-i]"); if (ph) openViewer(+ph.dataset.i);
+  });
+  input.addEventListener("change", () => addPhotos(input.files, target));
+
+  // viewer controls
+  const viewer = $("#viewer");
+  viewer.addEventListener("click", async e => {
+    const v = e.target.closest("[data-v]"); if (!v) return;
+    const act = v.dataset.v, p = gallery.list[gallery.at];
+    if (act === "close") closeViewer();
+    else if (act === "prev") stepViewer(-1);
+    else if (act === "next") stepViewer(1);
+    else if (act === "download" && p) {
+      const a = document.createElement("a");
+      a.href = gallery.fullUrl; a.download = `baby-${slug(CONFIG.babySurname)}-${p.taken || "photo"}-${p.id}.jpg`;
+      document.body.appendChild(a); a.click(); a.remove();
+    } else if (act === "delete" && p) {
+      if (!confirm("Delete this photo from this device?")) return;
+      try { await photoDB.del(p.id); } catch { return toast("Couldn't delete that photo."); }
+      gallery.photos = gallery.photos.filter(x => x.id !== p.id);
+      if (gallery.urls.has(p.id)) { URL.revokeObjectURL(gallery.urls.get(p.id)); gallery.urls.delete(p.id); }
+      gallery.list.splice(gallery.at, 1);
+      if (gallery.at >= gallery.list.length) gallery.at = gallery.list.length - 1;
+      renderGallery();
+      gallery.list.length ? showViewerPhoto() : closeViewer();
+      toast("Photo deleted");
     }
   });
-  input.addEventListener("change", async () => {
-    const file = input.files && input.files[0]; if (!file || !pendingMemory) return;
-    try {
-      const img = await compress(file);
-      if (store.set("mem." + pendingMemory, { img, at: Date.now() })) { renderMemories(); toast("Memory saved ❤️"); }
-      else toast("This phone's storage for the site is full — try removing a photo first.");
-    } catch { toast("Sorry, that photo couldn't be opened. Try a JPG or PNG."); }
+  $("#viewerCaption").addEventListener("change", e => updateViewerPhoto({ caption: e.target.value.trim() }));
+  $("#viewerAlbum").addEventListener("change", e => updateViewerPhoto({ album: e.target.value }));
+  $("#viewerDate").addEventListener("change", e => { if (parseDate(e.target.value)) { updateViewerPhoto({ taken: e.target.value }); showViewerPhoto(); } });
+  document.addEventListener("keydown", e => {
+    if (viewer.hidden || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) {
+      if (!viewer.hidden && e.key === "Escape") closeViewer();
+      return;
+    }
+    if (e.key === "Escape") closeViewer();
+    else if (e.key === "ArrowLeft") stepViewer(-1);
+    else if (e.key === "ArrowRight") stepViewer(1);
   });
+  // swipe left/right on phones
+  let x0 = null;
+  $("#viewerStage").addEventListener("touchstart", e => { x0 = e.touches[0].clientX; }, { passive: true });
+  $("#viewerStage").addEventListener("touchend", e => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0; x0 = null;
+    if (Math.abs(dx) > 50) stepViewer(dx < 0 ? 1 : -1);
+  });
+
+  renderGallery();   // empty state straight away, photos fill in below
+  if (!("indexedDB" in window)) { $("#albumStorage").textContent = "This browser can't store photos."; return; }
+  try {
+    await migrateOldMemories();
+    gallery.photos = await photoDB.all();
+    sortPhotos(); gallery.ready = true; renderGallery();
+  } catch (e) {
+    console.warn("Photo album unavailable", e);
+    $("#albumStorage").textContent = "Photos can't be saved in this browser (private mode?).";
+  }
 }
 
 /* ---------- Note of the day ---------- */
@@ -927,10 +1226,15 @@ function initSettings() {
     toast("Using the CONFIG values from script.js");
   });
 
-  $("#exportData").addEventListener("click", () => {
+  $("#exportData").addEventListener("click", async () => {
     const out = {};
     store.keys().forEach(k => { out[k] = localStorage.getItem(k); });
-    download(`baby-${slug(CONFIG.babySurname)}-backup-${toISO(new Date())}.json`, JSON.stringify({ app: "baby-adel", v: 1, data: out }), "application/json");
+    let photos = [];
+    try {
+      if (gallery.photos.length) toast(`Preparing ${gallery.photos.length} photos…`);
+      photos = await Promise.all(gallery.photos.map(async p => ({ id: p.id, album: p.album, caption: p.caption, taken: p.taken, added: p.added, full: await blobToDataURL(p.full) })));
+    } catch (e) { console.warn("Photos left out of backup", e); toast("Photos couldn't be added to the backup."); }
+    download(`baby-${slug(CONFIG.babySurname)}-backup-${toISO(new Date())}.json`, JSON.stringify({ app: "baby-adel", v: 2, data: out, photos }), "application/json");
   });
   $("#importData").addEventListener("change", async (e) => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
@@ -940,6 +1244,16 @@ function initSettings() {
       if (!confirm("Replace the ticks, letter and photos on this device with the backup?")) return;
       store.keys().forEach(k => localStorage.removeItem(k));
       Object.entries(json.data).forEach(([k, v]) => { if (k.startsWith(KEY)) localStorage.setItem(k, v); });
+      // Photos: replace the album with the backup's (older backups keep photos in `data`, which move in on reload)
+      toast("Restoring…");
+      await photoDB.clear();
+      for (const p of json.photos || []) {
+        try {
+          const full = await (await fetch(p.full)).blob();
+          const { thumb } = await shrink(p.full);
+          await photoDB.put({ id: p.id || newId(), album: p.album || "everyday", caption: p.caption || "", taken: p.taken || "", added: p.added || Date.now(), full, thumb });
+        } catch (err) { console.warn("Photo not restored", err); }
+      }
       location.reload();
     } catch { toast("That file doesn't look like a Baby Adel backup."); }
     e.target.value = "";
@@ -974,7 +1288,7 @@ function initNav() {
     $$("main section[id]").forEach(s => io.observe(s));
 
     const rv = new IntersectionObserver(entries => entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add("is-in"); rv.unobserve(en.target); } }), { rootMargin: "0px 0px -8% 0px" });
-    $$(".section__head, .who, .know, .week-card, .milestones, .prep-total, .note-of-day, .care-grid, .disclaimer, .mission, .letter, .baby-letter, .memories").forEach(el => { el.classList.add("reveal"); rv.observe(el); });
+    $$(".section__head, .who, .know, .week-card, .milestones, .prep-total, .note-of-day, .care-grid, .disclaimer, .mission, .letter, .baby-letter, .album").forEach(el => { el.classList.add("reveal"); rv.observe(el); });
   }
 }
 

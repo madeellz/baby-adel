@@ -14,7 +14,7 @@
   <!-- Free fonts from Google Fonts (no account, no tracking cookies) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Pinyon+Script&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Pinyon+Script&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="style.css">
 </head>
@@ -235,6 +235,7 @@
       <article class="week-card" id="weekCard" aria-live="polite">
         <div class="week-card__visual">
           <div class="week-card__fruit" id="weekFruit"></div>
+          <p class="week-card__names"><span id="weekFruitName"></span><span id="weekFruitAr" lang="ar" dir="rtl"></span></p>
           <p class="week-card__badge" id="weekHere" hidden><svg><use href="#i-heart"/></svg> You are here</p>
         </div>
         <div class="week-card__body">
@@ -259,6 +260,10 @@
               <p id="weekMama"></p>
             </div>
           </div>
+          <dl class="week-card__facts">
+            <div><dt>Growing now</dt><dd id="weekGrow"></dd></div>
+            <div><dt>Can sense</dt><dd id="weekSense"></dd></div>
+          </dl>
           <p class="week-card__note" id="weekNote" hidden></p>
         </div>
       </article>
@@ -272,7 +277,7 @@
       <header class="section__head">
         <p class="eyebrow">Our moments</p>
         <h2 id="msTitle" class="section__title">Milestones</h2>
-        <p class="section__lead">Tap a moment when it happens. We'll remember the day.</p>
+        <p class="section__lead">Tap a moment and choose the day it happened.</p>
       </header>
       <div class="ms-summary"><span id="msCount">0 of 0</span> moments so far</div>
       <ol class="milestones" id="milestoneList"></ol>
@@ -384,10 +389,16 @@
       <header class="section__head">
         <p class="eyebrow">Our album</p>
         <h2 id="memTitle" class="section__title">Memories</h2>
-        <p class="section__lead">Add a photo to each moment. Photos stay private on this phone.</p>
+        <p class="section__lead">Add as many photos as you like. Tap one to see it full size, add a caption or change its date.</p>
       </header>
-      <div class="memories" id="memoryGrid"></div>
-      <input type="file" accept="image/*" id="memoryInput" hidden>
+      <div class="album-bar">
+        <div class="album-chips" id="albumChips" role="tablist" aria-label="Albums"></div>
+        <button class="btn" id="addPhotos"><svg><use href="#i-plus"/></svg>Add photos</button>
+      </div>
+      <p class="album-progress" id="albumProgress" role="status" hidden></p>
+      <div class="album" id="albumGrid"></div>
+      <p class="fineprint center" id="albumStorage"></p>
+      <input type="file" accept="image/*" id="photoInput" multiple hidden>
     </div>
   </section>
 
@@ -436,6 +447,54 @@
     <div class="field">
       <button class="btn btn--text" id="resetSettings">Reset this phone to the CONFIG values</button>
     </div>
+  </div>
+</div>
+
+<!-- ============ PHOTO VIEWER ============ -->
+<div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-label="Photo" hidden>
+  <div class="viewer__top">
+    <span class="viewer__count" id="viewerCount"></span>
+    <button class="icon-btn viewer__btn" data-v="close" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+  </div>
+  <div class="viewer__stage" id="viewerStage">
+    <button class="icon-btn viewer__btn viewer__nav" data-v="prev" aria-label="Previous photo"><svg><use href="#i-arrow-l"/></svg></button>
+    <img id="viewerImg" alt="">
+    <button class="icon-btn viewer__btn viewer__nav" data-v="next" aria-label="Next photo"><svg><use href="#i-arrow-r"/></svg></button>
+  </div>
+  <div class="viewer__info">
+    <label class="sr-only" for="viewerCaption">Caption</label>
+    <input class="viewer__caption" id="viewerCaption" type="text" maxlength="140" placeholder="Add a caption…">
+    <div class="viewer__row">
+      <label class="sr-only" for="viewerAlbum">Album</label>
+      <select id="viewerAlbum"></select>
+      <label class="sr-only" for="viewerDate">Date taken</label>
+      <input type="date" id="viewerDate">
+      <span class="viewer__wk" id="viewerWeek"></span>
+      <span class="viewer__spacer"></span>
+      <button class="viewer__link" data-v="download"><svg><use href="#i-download"/></svg>Save</button>
+      <button class="viewer__link" data-v="delete">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MILESTONE DATE SHEET ============ -->
+<div class="sheet" id="msSheet" hidden>
+  <div class="sheet__backdrop" data-ms-close></div>
+  <div class="sheet__panel sheet__panel--sm" role="dialog" aria-modal="true" aria-labelledby="msSheetTitle">
+    <div class="sheet__head">
+      <h2 id="msSheetTitle">Milestone</h2>
+      <button class="icon-btn" data-ms-close aria-label="Close"><svg><use href="#i-close"/></svg></button>
+    </div>
+    <p class="field__help" id="msSheetHint"></p>
+    <div class="field">
+      <label for="msDateInput">When did it happen?</label>
+      <input type="date" id="msDateInput">
+    </div>
+    <div class="ms-sheet__btns">
+      <button class="btn" id="msSave">Save date</button>
+      <button class="btn btn--ghost" id="msToday">It's today</button>
+    </div>
+    <button class="btn btn--text" id="msRemove" hidden>Clear this milestone</button>
   </div>
 </div>
 

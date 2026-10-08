@@ -51,7 +51,8 @@ way to change it for everyone (a later CONFIG edit wins over the old phone setti
 
 * No analytics, no ads, no accounts, no cookies. The page also tells search engines not to index it.
 * The only outside request is to Google Fonts for the typefaces.
-* Ticks, the baby letter and photos are saved in **this browser on this device** (localStorage).
+* Ticks, milestone dates, the baby letter and photos are saved in **this browser on this device**
+  (localStorage, and IndexedDB for the photo album, which has room for hundreds of photos).
   They do **not** sync between Mohamed's phone and Marwa's phone — that would need a server/database.
   - Workaround: ⚙️ Settings → **Download backup** on one phone, send the file to the other phone
     (e.g. WhatsApp), then ⚙️ Settings → **Restore backup** there.
