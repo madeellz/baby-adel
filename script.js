@@ -953,8 +953,9 @@ function renderVisits() {
       </form>
       ${sugg.length ? `<div class="vq-sugg"><p>Ideas for this stage — tap to add</p>${sugg.map(s => `<button type="button" data-act="sugg">${esc(s)}</button>`).join("")}</div>` : ""}
       ${draft ? "" : `<label class="visit__notes"><span>Notes from the visit</span>
-        <textarea data-field="notes" rows="3" placeholder="Weight, blood pressure, scan results, next steps…">${esc(cur.notes || "")}</textarea></label>
-      <div class="visit__foot">
+        <textarea data-field="notes" rows="3" placeholder="Weight, blood pressure, scan results, next steps…">${esc(cur.notes || "")}</textarea></label>`}
+      ${attachBlock(cur.id)}
+      ${draft ? "" : `<div class="visit__foot">
         <button class="btn btn--ghost btn--sm" data-act="export"><svg><use href="#i-download"/></svg>Save as text</button>
         <button class="btn btn--sm" data-act="done"><svg><use href="#i-check"/></svg>Visit done</button>
       </div>`}
@@ -962,14 +963,21 @@ function renderVisits() {
   }
 
   if (past.length) {
+    // keep any open past visit open after a redraw
+    const openIds = new Set($$("#visitApp .pv[open]").map(d => d.dataset.visit));
     html += `<div class="visit-past"><h3>Past visits</h3>${past.map(v => {
       const qs = v.questions || [];
-      return `<details class="pv" data-visit="${v.id}">
+      const nFiles = visitFiles.list.filter(f => f.visit === v.id).length;
+      const bits = [`${qs.length} ${qs.length === 1 ? "question" : "questions"}`];
+      if (nFiles) bits.push(`${nFiles} ${nFiles === 1 ? "file" : "files"}`);
+      return `<details class="pv" data-visit="${v.id}" ${openIds.has(v.id) ? "open" : ""}>
         <summary><span class="pv__date">${v.date ? fmtDate(parseDate(v.date), { day: "numeric", month: "short", year: "numeric" }) : "No date"}</span>
-          <span class="pv__doc">${esc(v.doctor || "")}</span><span class="pv__n">${qs.length} ${qs.length === 1 ? "question" : "questions"}</span></summary>
+          <span class="pv__doc">${esc(v.doctor || "")}</span><span class="pv__n">${bits.join(" · ")}</span></summary>
         <div class="pv__body">
-          ${qs.length ? `<dl>${qs.map(q => `<dt>${esc(q.text)}</dt><dd>${q.answer ? esc(q.answer) : "<em>No answer recorded</em>"}</dd>`).join("")}</dl>` : ""}
-          ${v.notes ? `<p class="pv__notes"><b>Notes</b>${esc(v.notes)}</p>` : ""}
+          ${qs.length ? `<ol class="vq-list vq-list--past">${qs.map(questionItem).join("")}</ol>` : ""}
+          <label class="visit__notes"><span>Notes from the visit</span>
+            <textarea data-field="notes" rows="2" placeholder="Weight, blood pressure, scan results, next steps…">${esc(v.notes || "")}</textarea></label>
+          ${attachBlock(v.id)}
           <div class="pv__btns">
             <button class="btn btn--text" data-act="export">Save as text</button>
             <button class="btn btn--text" data-act="reopen">Reopen</button>
@@ -987,12 +995,69 @@ function visitText(v) {
   lines.push("");
   (v.questions || []).forEach((q, i) => { lines.push(`${i + 1}. ${q.text}${q.asked ? " ✓" : ""}`); lines.push(`   ${q.answer || "—"}`); lines.push(""); });
   if (v.notes) { lines.push("Notes:"); lines.push(v.notes); }
+  const files = visitFiles.list.filter(f => f.visit === v.id);
+  if (files.length) { lines.push(""); lines.push("Attachments (saved on the website):"); files.forEach(f => lines.push(`- ${f.name}`)); }
   return lines.join("\n");
+}
+
+/* ---- Attachments: doctor's letters, prescriptions, results (photos or PDFs) ---- */
+const visitFiles = { list: [], urls: new Map() };
+const fileURL = (f) => {
+  if (!visitFiles.urls.has(f.id)) visitFiles.urls.set(f.id, URL.createObjectURL(f.blob));
+  return visitFiles.urls.get(f.id);
+};
+const fmtSize = (b) => b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`;
+function attachBlock(visitId) {
+  const files = visitFiles.list.filter(f => f.visit === visitId).sort((a, b) => a.added - b.added);
+  return `<div class="vfiles">
+    <div class="vfiles__head"><span>Letters &amp; reports</span>
+      <button type="button" class="vfiles__add" data-act="add-file"><svg><use href="#i-plus"/></svg>Add file</button></div>
+    ${files.length ? `<ul class="vfiles__list">${files.map(f => `<li class="vfile" data-file="${f.id}">
+        <button type="button" class="vfile__open" data-act="open-file" title="Open ${esc(f.name)}">
+          ${/^image\//.test(f.type) ? `<img src="${fileURL(f)}" alt="">` : `<span class="vfile__pdf">PDF</span>`}
+          <span class="vfile__name">${esc(f.name)}</span><span class="vfile__size">${fmtSize(f.size)}</span></button>
+        <button type="button" class="vfile__del" data-act="del-file" aria-label="Remove ${esc(f.name)}">×</button></li>`).join("")}</ul>`
+      : `<p class="vfiles__empty">Keep the doctor's letters, prescriptions, test results or scan reports here — photos or PDFs.</p>`}
+  </div>`;
+}
+async function addVisitFiles(files, visitId) {
+  let ok = 0, skipped = 0;
+  for (const f of files) {
+    try {
+      let blob, type, name = f.name || "file";
+      if (/^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp)$/i.test(name)) {
+        blob = (await shrink(f)).full; type = "image/jpeg";   // 2000px is plenty to read a letter
+        name = name.replace(/\.\w+$/, "") + ".jpg";
+      } else if (f.type === "application/pdf" || /\.pdf$/i.test(name)) {
+        if (f.size > 25 * 1048576) { skipped++; continue; }
+        blob = f; type = "application/pdf";
+      } else { skipped++; continue; }
+      const rec = { id: newId(), visit: visitId, name, type, size: blob.size, added: Date.now(), blob };
+      await fileDB.put(rec);
+      visitFiles.list.push(rec); ok++;
+    } catch (e) { console.warn("Attachment not saved", f.name, e); skipped++; }
+  }
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
+  renderVisits();
+  toast(skipped ? `${ok} saved · ${skipped} skipped (photos or PDFs under 25 MB only)` : `${ok} ${ok === 1 ? "file" : "files"} saved ❤️`);
+}
+async function deleteVisitFiles(visitId, fileId) {
+  const gone = visitFiles.list.filter(f => fileId ? f.id === fileId : f.visit === visitId);
+  for (const f of gone) {
+    try { await fileDB.del(f.id); } catch {}
+    if (visitFiles.urls.has(f.id)) { URL.revokeObjectURL(visitFiles.urls.get(f.id)); visitFiles.urls.delete(f.id); }
+  }
+  visitFiles.list = visitFiles.list.filter(f => !gone.includes(f));
 }
 
 function initVisits() {
   renderVisits();
   const app = $("#visitApp");
+  const fileInput = $("#visitFileInput");
+  let fileTarget = null;
+  fileInput.addEventListener("change", () => { if (fileTarget && fileInput.files.length) addVisitFiles([...fileInput.files], fileTarget); });
+  // attachments live in IndexedDB; draw them once they've loaded
+  if ("indexedDB" in window) fileDB.all().then(list => { visitFiles.list = list || []; renderVisits(); }).catch(e => console.warn("Attachments unavailable", e));
   const update = (id, fn, rerender = true) => {
     const all = visitsAll();
     let v = all.find(x => x.id === id);
@@ -1049,8 +1114,25 @@ function initVisits() {
       update(id, v => { v.done = false; });
     }
     else if (act === "del-visit") {
-      if (!confirm("Delete this visit and its answers?")) return;
-      visitsSave(visitsAll().filter(x => x.id !== id)); renderVisits();
+      if (!confirm("Delete this visit, its answers and its files?")) return;
+      visitsSave(visitsAll().filter(x => x.id !== id));
+      deleteVisitFiles(id).then(renderVisits);
+    }
+    else if (act === "add-file") {
+      // a file added before any visit is booked starts one, like a first question
+      let target = id;
+      if (!target) update("", v => { target = v.id; });
+      fileTarget = target; fileInput.value = ""; fileInput.click();
+    }
+    else if (act === "open-file") {
+      const f = visitFiles.list.find(x => x.id === b.closest("[data-file]").dataset.file);
+      if (f) window.open(fileURL(f), "_blank");
+    }
+    else if (act === "del-file") {
+      const fid = b.closest("[data-file]").dataset.file;
+      const f = visitFiles.list.find(x => x.id === fid);
+      if (!f || !confirm(`Remove "${f.name}"?`)) return;
+      deleteVisitFiles(null, fid).then(renderVisits);
     }
     else if (act === "export") {
       const v = visitsAll().find(x => x.id === id); if (!v) return;
@@ -1207,29 +1289,38 @@ function download(name, content, type) {
    Photos live in IndexedDB (room for hundreds of photos; localStorage only
    fits a handful). Each photo keeps a full-size copy (max 2000px) and a small
    thumbnail for the grid.                                                   */
-const photoDB = (() => {
+// One IndexedDB database with two stores: "photos" (album) and "files" (visit attachments)
+const idbStore = (() => {
   let dbp = null;
   const open = () => dbp || (dbp = new Promise((res, rej) => {
-    const r = indexedDB.open("babyAdel", 1);
-    r.onupgradeneeded = () => r.result.createObjectStore("photos", { keyPath: "id" });
+    const r = indexedDB.open("babyAdel", 2);
+    r.onupgradeneeded = () => {
+      const db = r.result;
+      if (!db.objectStoreNames.contains("photos")) db.createObjectStore("photos", { keyPath: "id" });
+      if (!db.objectStoreNames.contains("files")) db.createObjectStore("files", { keyPath: "id" });
+    };
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
   }));
-  const run = async (mode, fn) => {
-    const db = await open();
-    return new Promise((res, rej) => {
-      const t = db.transaction("photos", mode), req = fn(t.objectStore("photos"));
-      t.oncomplete = () => res(req ? req.result : undefined);
-      t.onerror = t.onabort = () => rej(t.error);
-    });
-  };
-  return {
-    all:   () => run("readonly", s => s.getAll()),
-    put:   (rec) => run("readwrite", s => s.put(rec)),
-    del:   (id) => run("readwrite", s => s.delete(id)),
-    clear: () => run("readwrite", s => s.clear())
+  return (name) => {
+    const run = async (mode, fn) => {
+      const db = await open();
+      return new Promise((res, rej) => {
+        const t = db.transaction(name, mode), req = fn(t.objectStore(name));
+        t.oncomplete = () => res(req ? req.result : undefined);
+        t.onerror = t.onabort = () => rej(t.error);
+      });
+    };
+    return {
+      all:   () => run("readonly", s => s.getAll()),
+      put:   (rec) => run("readwrite", s => s.put(rec)),
+      del:   (id) => run("readwrite", s => s.delete(id)),
+      clear: () => run("readwrite", s => s.clear())
+    };
   };
 })();
+const photoDB = idbStore("photos");
+const fileDB = idbStore("files");   // { id, visit, name, type, size, added, blob }
 
 const loadImage = (src) => new Promise((res, rej) => {
   const img = new Image();
@@ -1476,7 +1567,11 @@ function initSettings() {
       if (gallery.photos.length) toast(`Preparing ${gallery.photos.length} photos…`);
       photos = await Promise.all(gallery.photos.map(async p => ({ id: p.id, album: p.album, caption: p.caption, taken: p.taken, added: p.added, full: await blobToDataURL(p.full) })));
     } catch (e) { console.warn("Photos left out of backup", e); toast("Photos couldn't be added to the backup."); }
-    download(`baby-${slug(CONFIG.babySurname)}-backup-${toISO(new Date())}.json`, JSON.stringify({ app: "baby-adel", v: 2, data: out, photos }), "application/json");
+    let files = [];
+    try {
+      files = await Promise.all(visitFiles.list.map(async f => ({ id: f.id, visit: f.visit, name: f.name, type: f.type, added: f.added, data: await blobToDataURL(f.blob) })));
+    } catch (e) { console.warn("Visit files left out of backup", e); toast("Visit files couldn't be added to the backup."); }
+    download(`baby-${slug(CONFIG.babySurname)}-backup-${toISO(new Date())}.json`, JSON.stringify({ app: "baby-adel", v: 3, data: out, photos, files }), "application/json");
   });
   $("#importData").addEventListener("change", async (e) => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
@@ -1495,6 +1590,13 @@ function initSettings() {
           const { thumb } = await shrink(p.full);
           await photoDB.put({ id: p.id || newId(), album: p.album || "everyday", caption: p.caption || "", taken: p.taken || "", added: p.added || Date.now(), full, thumb });
         } catch (err) { console.warn("Photo not restored", err); }
+      }
+      await fileDB.clear();
+      for (const f of json.files || []) {
+        try {
+          const blob = await (await fetch(f.data)).blob();
+          await fileDB.put({ id: f.id || newId(), visit: f.visit, name: f.name || "file", type: f.type || blob.type, size: blob.size, added: f.added || Date.now(), blob });
+        } catch (err) { console.warn("File not restored", err); }
       }
       location.reload();
     } catch { toast("That file doesn't look like a Baby Adel backup."); }
