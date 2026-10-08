@@ -836,6 +836,248 @@ function initMilestones() {
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !sheet.hidden) close(); });
 }
 
+/* ---------- Doctor visits: questions, answers, notes ----------
+   Saved under "visits" as a list of
+   { id, doctor, date, time, place, done, notes, questions: [{ id, text, asked, answer }] }.
+   The "current" visit is the earliest one not marked done.                      */
+const SUGGESTED_QUESTIONS = {
+  1: ["Which prenatal vitamins should I take, and for how long?",
+      "Which foods and drinks should I avoid?",
+      "Is my current medication safe to continue?",
+      "Which symptoms mean I should call you straight away?",
+      "Which screening tests do you recommend, and when?",
+      "Is it safe to keep exercising? Which kinds?",
+      "When is my next scan?"],
+  2: ["When is the anatomy scan?",
+      "Could we find out the baby's sex at the next scan?",
+      "When should I do the glucose test?",
+      "How much weight gain is healthy for me?",
+      "Is it safe for me to travel?",
+      "Which sleeping position is best now?",
+      "When should I expect to feel movements?"],
+  3: ["How should I keep track of the baby's movements?",
+      "What are the signs that labour is starting?",
+      "When should we go to the hospital?",
+      "What happens when we arrive at the hospital?",
+      "What pain relief options are there?",
+      "What happens if I go past my due date?",
+      "Is there anything we should prepare before the birth?"]
+};
+
+const visitsAll = () => store.get("visits", []);
+const visitsSave = (v) => store.set("visits", v);
+const sortVisits = (v) => v.sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
+const currentVisit = (v) => sortVisits(v.filter(x => !x.done))[0] || null;
+
+function visitWhen(v) {
+  if (!v.date) return { big: "Date not set yet", small: "" };
+  const d = parseDate(v.date);
+  const days = calendarDaysBetween(startOfToday(), d);
+  const big = fmtDate(d, { weekday: "short", day: "numeric", month: "long" }) + (v.time ? ` · ${v.time}` : "");
+  const rel = days === 0 ? "Today" : days === 1 ? "Tomorrow" : days > 1 ? `In ${days} days`
+    : days === -1 ? "Yesterday — add the answers" : `${-days} days ago — add the answers`;
+  const wk = weekAt(d);
+  return { big, small: rel + (wk ? ` · ${wk.replace("wk", "week")}` : ""), past: days < 0 };
+}
+
+function visitForm(v, title) {
+  v = v || {};
+  return `<form class="visit-form" data-form="${v.id || "new"}">
+    <h3>${esc(title)}</h3>
+    <div class="visit-form__grid">
+      <label>Doctor<input name="doctor" list="doctorList" maxlength="60" placeholder="Dr. …" value="${esc(v.doctor || "")}"></label>
+      <label>Date<input name="date" type="date" value="${esc(v.date || "")}"></label>
+      <label>Time <small>(optional)</small><input name="time" type="time" value="${esc(v.time || "")}"></label>
+      <label>Clinic / hospital <small>(optional)</small><input name="place" maxlength="80" value="${esc(v.place || "")}"></label>
+    </div>
+    <div class="visit-form__btns">
+      <button class="btn" type="submit">${v.id ? "Save changes" : "Save visit"}</button>
+      ${v.id || v.cancel ? `<button class="btn btn--ghost" type="button" data-act="cancel-edit">Cancel</button>` : ""}
+    </div>
+  </form>`;
+}
+
+function questionItem(q) {
+  return `<li class="vq ${q.asked ? "is-asked" : ""} ${q.answer ? "has-answer" : ""}" data-q="${q.id}">
+    <div class="vq__row">
+      <button type="button" class="vq__tick" data-act="ask" role="checkbox" aria-checked="${!!q.asked}" aria-label="Asked"><svg><use href="#i-check"/></svg></button>
+      <p class="vq__text">${esc(q.text)}</p>
+      <button type="button" class="vq__del" data-act="del-q" aria-label="Remove question">×</button>
+    </div>
+    <label class="vq__answer"><span>Doctor's answer</span>
+      <textarea data-field="answer" rows="2" placeholder="What did the doctor say?">${esc(q.answer || "")}</textarea></label>
+  </li>`;
+}
+
+let visitEditing = false;
+function renderVisits() {
+  const all = visitsAll();
+  let cur = currentVisit(all);
+  const past = all.filter(x => x.done).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const doctors = [...new Set(all.map(x => x.doctor).filter(Boolean))];
+  $("#doctorList").innerHTML = doctors.map(d => `<option value="${esc(d)}">`).join("");
+
+  let html = "";
+  if (visitEditing && !cur) {
+    const last = past[0];
+    html += `<article class="visit">${visitForm({ doctor: last ? last.doctor : "", place: last ? last.place : "", cancel: true }, "Next appointment")}</article>`;
+  } else if (visitEditing) {
+    html += `<article class="visit">${visitForm(cur, "Edit visit")}</article>`;
+  } else {
+    // No visit booked yet: still show the question list, so questions can be
+    // written down any time. Adding the first one creates the visit.
+    const draft = !cur;
+    if (draft) cur = { id: "", doctor: "", date: "", questions: [], notes: "" };
+    const w = draft ? { big: "Not booked yet", small: "" } : visitWhen(cur);
+    const qs = cur.questions || [];
+    const asked = qs.filter(q => q.asked).length;
+    const p = cur.date ? null : pregnancy();
+    const tri = cur.date ? (() => { const wk = parseInt((weekAt(parseDate(cur.date)) || "wk 0").slice(3), 10); return wk < 14 ? 1 : wk < 28 ? 2 : 3; })() : (p ? p.trimester : 1);
+    const have = new Set(qs.map(q => q.text.toLowerCase()));
+    const sugg = SUGGESTED_QUESTIONS[tri].filter(s => !have.has(s.toLowerCase())).slice(0, 4);
+    html += `<article class="visit ${w.past ? "is-past" : ""}" data-visit="${cur.id}">
+      <div class="visit__head">
+        <div>
+          <p class="visit__label">Next appointment</p>
+          <p class="visit__date">${esc(w.big)}</p>
+          <p class="visit__meta">${draft ? "Add the doctor and date once it's booked" : [cur.doctor, cur.place].filter(Boolean).map(esc).join(" · ") || "Add the doctor's name"}${w.small ? ` <span class="visit__rel">${esc(w.small)}</span>` : ""}</p>
+        </div>
+        <button class="btn ${draft ? "" : "btn--ghost"} btn--sm" data-act="edit">${draft ? "Add date & doctor" : "Edit"}</button>
+      </div>
+      <div class="visit__qhead"><h3>Questions to ask</h3>${qs.length ? `<span>${asked} of ${qs.length} asked</span>` : ""}</div>
+      <ol class="vq-list">${qs.map(questionItem).join("")}</ol>
+      ${qs.length ? "" : `<p class="vq-empty">No questions yet — type one below, or tap an idea.</p>`}
+      <form class="vq-add" data-form="add-q">
+        <input name="q" maxlength="200" placeholder="Type a question…" aria-label="New question" autocomplete="off">
+        <button type="submit" aria-label="Add question"><svg><use href="#i-plus"/></svg></button>
+      </form>
+      ${sugg.length ? `<div class="vq-sugg"><p>Ideas for this stage — tap to add</p>${sugg.map(s => `<button type="button" data-act="sugg">${esc(s)}</button>`).join("")}</div>` : ""}
+      ${draft ? "" : `<label class="visit__notes"><span>Notes from the visit</span>
+        <textarea data-field="notes" rows="3" placeholder="Weight, blood pressure, scan results, next steps…">${esc(cur.notes || "")}</textarea></label>
+      <div class="visit__foot">
+        <button class="btn btn--ghost btn--sm" data-act="export"><svg><use href="#i-download"/></svg>Save as text</button>
+        <button class="btn btn--sm" data-act="done"><svg><use href="#i-check"/></svg>Visit done</button>
+      </div>`}
+    </article>`;
+  }
+
+  if (past.length) {
+    html += `<div class="visit-past"><h3>Past visits</h3>${past.map(v => {
+      const qs = v.questions || [];
+      return `<details class="pv" data-visit="${v.id}">
+        <summary><span class="pv__date">${v.date ? fmtDate(parseDate(v.date), { day: "numeric", month: "short", year: "numeric" }) : "No date"}</span>
+          <span class="pv__doc">${esc(v.doctor || "")}</span><span class="pv__n">${qs.length} ${qs.length === 1 ? "question" : "questions"}</span></summary>
+        <div class="pv__body">
+          ${qs.length ? `<dl>${qs.map(q => `<dt>${esc(q.text)}</dt><dd>${q.answer ? esc(q.answer) : "<em>No answer recorded</em>"}</dd>`).join("")}</dl>` : ""}
+          ${v.notes ? `<p class="pv__notes"><b>Notes</b>${esc(v.notes)}</p>` : ""}
+          <div class="pv__btns">
+            <button class="btn btn--text" data-act="export">Save as text</button>
+            <button class="btn btn--text" data-act="reopen">Reopen</button>
+            <button class="btn btn--text" data-act="del-visit">Delete</button>
+          </div>
+        </div></details>`;
+    }).join("")}</div>`;
+  }
+  $("#visitApp").innerHTML = html;
+}
+
+function visitText(v) {
+  const lines = [`Doctor visit — ${v.date ? fmtDate(parseDate(v.date), { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "date not set"}${v.time ? " at " + v.time : ""}`];
+  if (v.doctor || v.place) lines.push([v.doctor, v.place].filter(Boolean).join(" · "));
+  lines.push("");
+  (v.questions || []).forEach((q, i) => { lines.push(`${i + 1}. ${q.text}${q.asked ? " ✓" : ""}`); lines.push(`   ${q.answer || "—"}`); lines.push(""); });
+  if (v.notes) { lines.push("Notes:"); lines.push(v.notes); }
+  return lines.join("\n");
+}
+
+function initVisits() {
+  renderVisits();
+  const app = $("#visitApp");
+  const update = (id, fn, rerender = true) => {
+    const all = visitsAll();
+    let v = all.find(x => x.id === id);
+    if (!v && !id) {   // first question before any visit is booked → start one
+      v = { id: newId(), doctor: "", date: "", time: "", place: "", done: false, notes: "", questions: [] };
+      all.push(v);
+    }
+    if (!v) return;
+    fn(v, all); visitsSave(all); if (rerender) renderVisits();
+  };
+  const visitId = (el) => { const c = el.closest("[data-visit]"); return c && c.dataset.visit; };
+
+  app.addEventListener("submit", e => {
+    e.preventDefault();
+    const f = e.target, kind = f.dataset.form;
+    if (kind === "add-q") {
+      const text = f.q.value.trim(); if (!text) return;
+      update(visitId(f), v => { (v.questions = v.questions || []).push({ id: newId(), text, asked: false, answer: "" }); });
+      const inp = $(".vq-add input", app); inp && inp.focus();
+      return;
+    }
+    const data = { doctor: f.doctor.value.trim(), date: parseDate(f.date.value) ? f.date.value : "", time: f.time.value, place: f.place.value.trim() };
+    if (kind === "new") {
+      visitEditing = false;
+      const all = visitsAll();
+      all.push({ id: newId(), ...data, done: false, notes: "", questions: [] });
+      visitsSave(all); renderVisits(); toast("Visit saved ❤️");
+    } else {
+      visitEditing = false;
+      update(kind, v => Object.assign(v, data));
+    }
+  });
+
+  app.addEventListener("click", e => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    flush();   // keyboard users don't trigger pointerdown
+    const act = b.dataset.act, id = visitId(b), qid = b.closest("[data-q]") && b.closest("[data-q]").dataset.q;
+    if (act === "edit") { visitEditing = true; renderVisits(); }
+    else if (act === "cancel-edit") { visitEditing = false; renderVisits(); }
+    else if (act === "ask") {
+      let nowAsked = false;
+      update(id, v => { const q = v.questions.find(x => x.id === qid); q.asked = !q.asked; nowAsked = q.asked && !q.answer; });
+      // ticked → jump straight into writing the doctor's answer
+      if (nowAsked) { const ta = $(`.vq[data-q="${qid}"] textarea`, app); ta && ta.focus(); }
+    }
+    else if (act === "del-q") update(id, v => { v.questions = v.questions.filter(x => x.id !== qid); });
+    else if (act === "sugg") update(id, v => { (v.questions = v.questions || []).push({ id: newId(), text: b.textContent, asked: false, answer: "" }); });
+    else if (act === "done") {
+      update(id, v => { v.done = true; if (!v.date) v.date = toISO(startOfToday()); });
+      toast("Visit saved to past visits ❤️");
+    }
+    else if (act === "reopen") {
+      if (currentVisit(visitsAll())) { toast("Finish or delete the next visit first."); return; }
+      update(id, v => { v.done = false; });
+    }
+    else if (act === "del-visit") {
+      if (!confirm("Delete this visit and its answers?")) return;
+      visitsSave(visitsAll().filter(x => x.id !== id)); renderVisits();
+    }
+    else if (act === "export") {
+      const v = visitsAll().find(x => x.id === id); if (!v) return;
+      download(`doctor-visit-${v.date || "undated"}.txt`, visitText(v), "text/plain");
+    }
+  });
+
+  // Answers and notes save as she types (no re-render, so the keyboard stays open)
+  let t, pending = null;
+  app.addEventListener("input", e => {
+    const field = e.target.dataset.field; if (!field) return;
+    const id = visitId(e.target), qid = e.target.closest("[data-q]") && e.target.closest("[data-q]").dataset.q, val = e.target.value;
+    const li = e.target.closest(".vq"); if (li) li.classList.toggle("has-answer", !!val.trim());
+    clearTimeout(t);
+    pending = () => update(id, v => {
+      if (field === "notes") v.notes = val;
+      else { const q = v.questions.find(x => x.id === qid); if (q) q.answer = val; }
+    }, false);
+    t = setTimeout(() => { pending && pending(); pending = null; }, 500);
+  });
+  // Any button or form saves unsaved typing first, before the list redraws
+  const flush = () => { if (pending) { clearTimeout(t); pending(); pending = null; } };
+  app.addEventListener("pointerdown", flush, true);
+  app.addEventListener("submit", flush, true);
+  addEventListener("pagehide", flush);
+}
+
 /* ---------- Checklists (shopping + papa) ---------- */
 function checkBtn(key, text, sub, checked) {
   return `<button type="button" class="check" role="checkbox" aria-checked="${checked}" data-key="${esc(key)}">
@@ -1329,6 +1571,7 @@ function init() {
   requestAnimationFrame(() => { const strip = $("#weekStrip"), b = $(`#weekStrip button[data-week="${selectedWeek}"]`); if (b) strip.scrollLeft = b.offsetLeft - strip.clientWidth / 2 + b.offsetWidth / 2; });
 
   initMilestones();
+  initVisits();
   initPrep();
   initMission();
   initLetter();
