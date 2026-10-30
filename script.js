@@ -26,7 +26,7 @@ const CONFIG = {
   boyName:     "Yassin",
   girlName:    "Lily",
   gender:      "unknown",      // "unknown" | "boy" | "girl"
-  dueDate:     "2027-05-24"    // YYYY-MM-DD
+  dueDate:     "2027-05-22"    // YYYY-MM-DD — from doctor visit 15 Oct 2026 (8w+5d)
 };
 
 /* ========================================================================= */
