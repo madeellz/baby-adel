@@ -47,18 +47,37 @@ way to change it for everyone (a later CONFIG edit wins over the old phone setti
 
 ---
 
+## 🔄 Sync between Mohamed's and Marwa's phones
+
+Both phones share one journal through a free **Supabase** project called `baby-adel`.
+
+* **Connect a phone:** open `https://madeellz.github.io/baby-adel/#family=YOUR-CODE` once,
+  or go to ⚙️ Settings → **Sync between phones** and type the family code.
+* Shared: milestones, shopping checklist (and your own extra items), Papa's mission, the baby
+  letter, doctor visits (questions, answers, notes, letters/PDFs), the photo album, and the
+  gender setting.
+* Everything saves on the phone first, so the site works offline; changes sync when back online.
+  The other phone sees them within ~10 seconds (or straight away when you open the site).
+* If you both change the *same list* at the very same moment, the last save wins for that list.
+* The family code is stored in the database only as a scrambled hash, and is **not** in any file on
+  GitHub. After 30 wrong codes in 15 minutes, the database stops answering for a while.
+* **Change the family code:** Supabase → baby-adel → SQL Editor → run
+  `update private.family_secret set code_hash = extensions.crypt('new-code-here', extensions.gen_salt('bf', 10));`
+  Then reconnect both phones with the new code.
+* **Free plan limits:** 500 MB database (roughly 600–900 photos, since each is stored at up to
+  2000 px). Supabase pauses a free project after about a week with no visits — opening the site
+  regularly prevents that, and a paused project can be restored with one click in the dashboard.
+* The database setup lives in `supabase-setup.sql` (already run — you don't need to run it again).
+
 ## 🔒 Privacy & where your data lives
 
-* No analytics, no ads, no accounts, no cookies. The page also tells search engines not to index it.
-* The only outside request is to Google Fonts for the typefaces.
-* Ticks, milestone dates, the baby letter and photos are saved in **this browser on this device**
-  (localStorage, and IndexedDB for the photo album, which has room for hundreds of photos).
-  They do **not** sync between Mohamed's phone and Marwa's phone — that would need a server/database.
-  - Workaround: ⚙️ Settings → **Download backup** on one phone, send the file to the other phone
-    (e.g. WhatsApp), then ⚙️ Settings → **Restore backup** there.
-  - Clearing browser data / using private mode erases saved items. Download a backup now and then.
-* Your GitHub Pages URL is public to anyone who has the link (it's just hard to guess).
-  Photos and letters are NOT uploaded anywhere — they stay on the phone.
+* No analytics, no ads, no cookies. The page also tells search engines not to index it.
+* Outside requests: Google Fonts (typefaces) and your own Supabase project (sync).
+* Journal data is stored on each phone and in your private Supabase database. Only someone with
+  the family code can read or change it.
+* ⚙️ Settings → **Download backup** still gives you one file with everything, to keep safe.
+* Your GitHub Pages URL is public to anyone who has the link, but without the family code it only
+  shows the countdown and week-by-week information — none of your saved data.
 
 ---
 

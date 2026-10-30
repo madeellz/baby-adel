@@ -29,6 +29,14 @@ const CONFIG = {
   dueDate:     "2027-05-22"    // YYYY-MM-DD — from doctor visit 15 Oct 2026 (8w+5d)
 };
 
+/* Shared sync between both phones (Supabase project "baby-adel").
+   These two values are safe to be public — the database only answers
+   to the family code, which is NOT stored in this file.                 */
+const SYNC = {
+  url: "https://rihacabcuyujrxfulawx.supabase.co",
+  key: "sb_publishable_kiy9C3o08dDTQuttWRaITg_NoUzna5d"
+};
+
 /* ========================================================================= */
 /*  Nothing below needs editing — but feel free to look around.              */
 /* ========================================================================= */
@@ -47,16 +55,19 @@ const fill = (s) => String(s)
   .replace(/\{surname\}/g, CONFIG.babySurname);
 
 /* ---------- Safe localStorage ---------- */
+let syncHook = null;   // set by the sync module: tells it a key changed on this phone
 const store = {
   get(k, fallback) {
     try { const v = localStorage.getItem(KEY + k); return v === null ? fallback : JSON.parse(v); }
     catch { return fallback; }
   },
   set(k, v) {
-    try { localStorage.setItem(KEY + k, JSON.stringify(v)); return true; }
+    try { localStorage.setItem(KEY + k, JSON.stringify(v)); }
     catch (e) { console.warn("Could not save", k, e); return false; }
+    syncHook && syncHook(k);
+    return true;
   },
-  del(k) { try { localStorage.removeItem(KEY + k); } catch {} },
+  del(k) { try { localStorage.removeItem(KEY + k); } catch {} syncHook && syncHook(k); },
   keys() {
     try { return Object.keys(localStorage).filter(k => k.startsWith(KEY)); } catch { return []; }
   }
@@ -1027,7 +1038,7 @@ function visitText(v) {
 /* ---- Attachments: doctor's letters, prescriptions, results (photos or PDFs) ---- */
 const visitFiles = { list: [], urls: new Map() };
 const fileURL = (f) => {
-  if (!visitFiles.urls.has(f.id)) visitFiles.urls.set(f.id, URL.createObjectURL(f.blob));
+  if (!visitFiles.urls.has(f.id)) visitFiles.urls.set(f.id, URL.createObjectURL(f.blob || f.thumb || new Blob()));
   return visitFiles.urls.get(f.id);
 };
 const fmtSize = (b) => b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`;
@@ -1081,7 +1092,9 @@ function initVisits() {
   let fileTarget = null;
   fileInput.addEventListener("change", () => { if (fileTarget && fileInput.files.length) addVisitFiles([...fileInput.files], fileTarget); });
   // attachments live in IndexedDB; draw them once they've loaded
-  if ("indexedDB" in window) fileDB.all().then(list => { visitFiles.list = list || []; renderVisits(); }).catch(e => console.warn("Attachments unavailable", e));
+  visitFiles.ready = "indexedDB" in window
+    ? fileDB.all().then(list => { visitFiles.list = list || []; renderVisits(); }).catch(e => console.warn("Attachments unavailable", e))
+    : Promise.resolve();
   const update = (id, fn, rerender = true) => {
     const all = visitsAll();
     let v = all.find(x => x.id === id);
@@ -1150,7 +1163,18 @@ function initVisits() {
     }
     else if (act === "open-file") {
       const f = visitFiles.list.find(x => x.id === b.closest("[data-file]").dataset.file);
-      if (f) window.open(fileURL(f), "_blank");
+      if (f && f.blob) window.open(fileURL(f), "_blank");
+      else if (f) {
+        // came from the other phone and hasn't finished downloading yet
+        const w = window.open("", "_blank");
+        toast("Downloading from the shared journal…");
+        Sync.ensureFull("file", f).then(blob => {
+          if (!blob) { w && w.close(); toast("Couldn't download that file — try again in a moment."); return; }
+          if (visitFiles.urls.has(f.id)) { URL.revokeObjectURL(visitFiles.urls.get(f.id)); visitFiles.urls.delete(f.id); }
+          const url = fileURL(f);
+          if (w) w.location.href = url; else window.open(url, "_blank");
+        }).catch(() => { w && w.close(); toast("Couldn't download that file — check the internet."); });
+      }
     }
     else if (act === "del-file") {
       const fid = b.closest("[data-file]").dataset.file;
@@ -1337,6 +1361,7 @@ const idbStore = (() => {
     };
     return {
       all:   () => run("readonly", s => s.getAll()),
+      get:   (id) => run("readonly", s => s.get(id)),
       put:   (rec) => run("readwrite", s => s.put(rec)),
       del:   (id) => run("readwrite", s => s.delete(id)),
       clear: () => run("readwrite", s => s.clear())
@@ -1453,7 +1478,8 @@ function closeViewer() {
 function showViewerPhoto() {
   const p = gallery.list[gallery.at]; if (!p) return closeViewer();
   if (gallery.fullUrl) URL.revokeObjectURL(gallery.fullUrl);
-  gallery.fullUrl = URL.createObjectURL(p.full);
+  gallery.fullUrl = URL.createObjectURL(p.full || p.thumb);
+  if (!p.full) Sync.ensureFull("photo", p).catch(() => {});   // from the other phone: sharp copy on its way
   $("#viewerImg").src = gallery.fullUrl;
   $("#viewerCaption").value = p.caption || "";
   $("#viewerAlbum").value = p.album;
@@ -1589,11 +1615,11 @@ function initSettings() {
     let photos = [];
     try {
       if (gallery.photos.length) toast(`Preparing ${gallery.photos.length} photos…`);
-      photos = await Promise.all(gallery.photos.map(async p => ({ id: p.id, album: p.album, caption: p.caption, taken: p.taken, added: p.added, full: await blobToDataURL(p.full) })));
+      photos = await Promise.all(gallery.photos.map(async p => ({ id: p.id, album: p.album, caption: p.caption, taken: p.taken, added: p.added, full: await blobToDataURL(p.full || p.thumb) })));
     } catch (e) { console.warn("Photos left out of backup", e); toast("Photos couldn't be added to the backup."); }
     let files = [];
     try {
-      files = await Promise.all(visitFiles.list.map(async f => ({ id: f.id, visit: f.visit, name: f.name, type: f.type, added: f.added, data: await blobToDataURL(f.blob) })));
+      files = await Promise.all(visitFiles.list.filter(f => f.blob).map(async f => ({ id: f.id, visit: f.visit, name: f.name, type: f.type, added: f.added, data: await blobToDataURL(f.blob) })));
     } catch (e) { console.warn("Visit files left out of backup", e); toast("Visit files couldn't be added to the backup."); }
     download(`baby-${slug(CONFIG.babySurname)}-backup-${toISO(new Date())}.json`, JSON.stringify({ app: "baby-adel", v: 3, data: out, photos, files }), "application/json");
   });
@@ -1627,6 +1653,410 @@ function initSettings() {
     e.target.value = "";
   });
 }
+
+/* ======================= SYNC BETWEEN PHONES =======================
+   Everything is still saved on this phone first (so the site works offline),
+   then copied to the shared Supabase database, and the other phone picks it
+   up within a few seconds. Every request carries the family code; without it
+   the database refuses to answer.
+
+   • Small things (ticks, letter, visits, settings) → one JSON value per key.
+   • Photos and visit files → a small thumbnail + the full file in pieces.
+   • If both phones change the same list at the same moment, the last one
+     saved wins for that list (rare for two people, and nothing else is lost). */
+const Sync = (() => {
+  const SYNCED = ["milestones", "shopping", "shoppingCustom", "mission", "letter", "visits", "settings"];
+  const CHUNK = 700000;                          // base64 characters per piece (~500 KB)
+  const meta = {                                 // sync's own bookkeeping, kept on this phone
+    get: (k, d) => store.get("sync." + k, d),
+    set: (k, v) => { try { localStorage.setItem(KEY + "sync." + k, JSON.stringify(v)); } catch {} }
+  };
+  let code = meta.get("code", null);
+  let applying = false, pulling = false, pushing = false, pumping = false;
+  let pullTimer = null, pushTimer = null;
+  const raw = {};   // the un-hooked put/del, used when applying the other phone's changes
+  const state = { last: meta.get("last", null), error: "", busy: false };
+
+  /* ---- talking to Supabase ---- */
+  async function rpc(fn, args) {
+    const r = await fetch(`${SYNC.url}/rest/v1/rpc/${fn}`, {
+      method: "POST",
+      headers: { apikey: SYNC.key, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(args)
+    });
+    const txt = await r.text();
+    let data = null; try { data = txt ? JSON.parse(txt) : null; } catch { data = txt; }
+    if (!r.ok) {
+      const e = new Error((data && data.message) || `HTTP ${r.status}`);
+      e.code = data && data.message; e.status = r.status; throw e;
+    }
+    return data;
+  }
+  const call = (fn, args = {}) => rpc(fn, { p_code: code, ...args });
+
+  function fail(e) {
+    console.warn("Sync:", e);
+    if (e.code === "wrong_code") { disconnect(true); state.error = "The family code has changed — please enter it again."; }
+    else if (e.code === "too_many_attempts") state.error = "Too many wrong codes were tried. Wait 15 minutes and try again.";
+    else state.error = navigator.onLine ? "Couldn't reach the shared journal — will keep trying." : "Offline — changes are saved here and will sync when you're back online.";
+    paint();
+  }
+
+  /* ---- what's waiting to be sent ---- */
+  const dirty = () => new Set(meta.get("dirty", []));
+  const setDirty = (set) => meta.set("dirty", [...set]);
+  const queue = () => meta.get("queue", []);      // [{ op: "up"|"meta"|"del", id, kind }]
+  const setQueue = (q) => meta.set("queue", q);
+  const uploaded = () => meta.get("up", {});      // ids whose full file is on the server
+  const setUploaded = (u) => meta.set("up", u);
+  const waiting = () => dirty().size + queue().length;
+
+  function keyChanged(k) {
+    if (applying || !SYNCED.includes(k)) return;
+    const d = dirty(); d.add(k); setDirty(d);
+    if (code) { clearTimeout(pushTimer); pushTimer = setTimeout(push, 600); }
+    paint();
+  }
+
+  function enqueue(job) {
+    if (applying) return;
+    let q = queue().filter(j => !(j.id === job.id && (j.op === job.op || job.op === "del")));
+    if (job.op === "meta" && q.some(j => j.id === job.id && j.op === "up")) return setQueue(q); // the upload carries the meta
+    if (job.op === "del" && !uploaded()[job.id]) { setQueue(q); return; }                      // never reached the server
+    q.push(job); setQueue(q);
+    if (code) pump();
+    paint();
+  }
+  // Called after a photo / visit file is saved or deleted on this phone
+  function blobChanged(kind, rec) { enqueue({ op: uploaded()[rec.id] ? "meta" : "up", id: rec.id, kind }); }
+  function blobDeleted(kind, id) { enqueue({ op: "del", id, kind }); }
+
+  /* ---- converting files ---- */
+  const dataURLtoBlob = async (u) => (await fetch(u)).blob();
+  const photoMeta = (p) => ({ album: p.album, caption: p.caption || "", taken: p.taken || "", added: p.added });
+  const fileMeta = (f) => ({ visit: f.visit, name: f.name, type: f.type, size: f.size, added: f.added });
+  async function fileThumb(f) {
+    if (!/^image\//.test(f.type) || !f.blob) return null;
+    try {
+      const url = URL.createObjectURL(f.blob);
+      try { return await toJpeg(await loadImage(url), 480, .78); } finally { URL.revokeObjectURL(url); }
+    } catch { return null; }
+  }
+
+  /* ---- sending ---- */
+  async function push() {
+    if (!code || pushing) return;
+    pushing = true;
+    try {
+      for (const k of dirty()) {
+        const raw = localStorage.getItem(KEY + k);
+        const value = raw === null ? null : JSON.parse(raw);
+        await call("fam_put", { p_key: k, p_value: value });
+        // only clear it if nothing changed while we were sending
+        if (localStorage.getItem(KEY + k) === raw) { const d = dirty(); d.delete(k); setDirty(d); }
+      }
+      state.error = ""; markSynced();
+    } catch (e) { fail(e); }
+    finally { pushing = false; paint(); }
+    pump();
+  }
+
+  async function pump() {
+    if (!code || pumping) return;
+    pumping = true;
+    try {
+      while (code && queue().length) {
+        const job = queue()[0];
+        const db = job.kind === "file" ? fileDB : photoDB;
+        if (job.op === "del") {
+          await call("fam_blob_delete", { p_id: job.id });
+          const u = uploaded(); delete u[job.id]; setUploaded(u);
+        } else {
+          const rec = await db.get(job.id);
+          if (rec && job.op === "meta") {
+            await call("fam_blob_meta", { p_id: rec.id, p_meta: job.kind === "file" ? fileMeta(rec) : photoMeta(rec) });
+          } else if (rec) {
+            const bytes = job.kind === "file" ? rec.blob : rec.full;
+            if (bytes) {
+              state.busy = true; paint();
+              const thumbBlob = job.kind === "file" ? await fileThumb(rec) : rec.thumb;
+              const thumb = thumbBlob ? await blobToDataURL(thumbBlob) : null;
+              const data = await blobToDataURL(bytes);
+              const n = Math.max(1, Math.ceil(data.length / CHUNK));
+              await call("fam_blob_begin", { p_id: rec.id, p_kind: job.kind, p_meta: job.kind === "file" ? fileMeta(rec) : photoMeta(rec), p_thumb: thumb, p_nchunks: n });
+              for (let i = 0; i < n; i++) await call("fam_blob_chunk", { p_id: rec.id, p_idx: i, p_data: data.slice(i * CHUNK, (i + 1) * CHUNK) });
+              await call("fam_blob_finish", { p_id: rec.id });
+              const u = uploaded(); u[rec.id] = true; setUploaded(u);
+            }
+          }
+        }
+        // remove exactly the job we just finished (the queue may have grown meanwhile)
+        const q = queue(); const i = q.findIndex(j => j.id === job.id && j.op === job.op); if (i >= 0) { q.splice(i, 1); setQueue(q); }
+        markSynced();
+      }
+      state.error = "";
+    } catch (e) { fail(e); }
+    finally { pumping = false; state.busy = false; paint(); }
+  }
+
+  /* ---- receiving ---- */
+  const later = new Set();   // redraws postponed while someone is typing
+  const typingIn = (sel) => { const a = document.activeElement; return a && a.closest && a.closest(sel) && /INPUT|TEXTAREA|SELECT/.test(a.tagName); };
+  function redraw(k) {
+    if (k === "milestones") renderMilestones();
+    else if (k === "shopping" || k === "shoppingCustom") { if (typingIn("#prepGrid")) return later.add(k); renderPrep(); }
+    else if (k === "mission") renderMission();
+    else if (k === "visits" || k === "files") { if (typingIn("#visitApp") || visitEditing) return later.add(k); renderVisits(); }
+    else if (k === "letter") {
+      const ta = $("#babyLetter"); if (document.activeElement === ta) return later.add(k);
+      const d = store.get("letter", null); ta.value = (d && d.text) || "";
+      const st = $("#letterState");
+      if (d && d.text) { st.classList.add("is-saved"); st.textContent = `Saved · ${new Date(d.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`; }
+    }
+    else if (k === "settings") applyGender();
+    else if (k === "photos") renderGallery();
+  }
+  document.addEventListener("focusout", () => setTimeout(() => {
+    if (typingIn("body")) return;
+    [...later].forEach(k => { later.delete(k); redraw(k); });
+  }, 250));
+
+  function writeLocal(k, value) {
+    applying = true;
+    try { if (value === null || value === undefined) localStorage.removeItem(KEY + k); else localStorage.setItem(KEY + k, JSON.stringify(value)); }
+    finally { applying = false; }
+  }
+
+  async function applyBlob(b) {
+    const isFile = b.kind === "file";
+    const db = raw[b.kind];
+    const local = isFile ? visitFiles.list : gallery.photos;
+    const at = local.findIndex(x => x.id === b.id);
+    if (b.deleted) {
+      if (at < 0) return false;
+      const gone = local[at];
+      local.splice(at, 1);
+      const urls = isFile ? visitFiles.urls : gallery.urls;
+      if (urls.has(gone.id)) { URL.revokeObjectURL(urls.get(gone.id)); urls.delete(gone.id); }
+      await db.del(b.id);
+      const u = uploaded(); delete u[b.id]; setUploaded(u);
+      return true;
+    }
+    const thumb = b.thumb ? await dataURLtoBlob(b.thumb) : null;
+    let rec = at >= 0 ? local[at] : null;
+    if (isFile) {
+      rec = Object.assign(rec || { id: b.id, blob: null }, b.meta, { thumb: thumb || (rec && rec.thumb) || null });
+    } else {
+      rec = Object.assign(rec || { id: b.id, full: null }, b.meta, { thumb: thumb || (rec && rec.thumb) });
+      if (!rec.thumb) return false;
+    }
+    if (at < 0) local.push(rec);
+    await db.put(rec);
+    const u = uploaded(); u[b.id] = true; setUploaded(u);
+    if ((isFile ? !rec.blob : !rec.full) && b.nchunks) fetchFull(b.kind, b.id, b.nchunks);
+    return true;
+  }
+
+  // Download the full photo / file in the background (and on demand)
+  const fetching = new Map();
+  function fetchFull(kind, id, nchunks) {
+    if (fetching.has(id)) return fetching.get(id);
+    const job = (async () => {
+      const parts = [];
+      for (let i = 0; i < nchunks; i++) {
+        const part = await call("fam_blob_get", { p_id: id, p_idx: i });
+        if (part == null) throw new Error("missing piece");
+        parts.push(part);
+      }
+      const blob = await dataURLtoBlob(parts.join(""));
+      const isFile = kind === "file";
+      const list = isFile ? visitFiles.list : gallery.photos;
+      const rec = list.find(x => x.id === id); if (!rec) return null;
+      if (isFile) rec.blob = blob; else rec.full = blob;
+      await raw[kind].put(rec);
+      if (isFile && visitFiles.urls.has(id)) { URL.revokeObjectURL(visitFiles.urls.get(id)); visitFiles.urls.delete(id); }
+      redraw(isFile ? "files" : "photos");
+      if (!isFile && !$("#viewer").hidden && gallery.list[gallery.at] && gallery.list[gallery.at].id === id) showViewerPhoto();
+      return blob;
+    })().finally(() => fetching.delete(id));
+    job.catch(e => console.warn("Sync: download failed", id, e));
+    fetching.set(id, job);
+    return job;
+  }
+  // Used by the viewer / file opener when the full copy isn't here yet
+  async function ensureFull(kind, rec) {
+    const have = kind === "file" ? rec.blob : rec.full;
+    if (have || !code) return have || null;
+    if (fetching.has(rec.id)) return fetching.get(rec.id);
+    const res = await call("fam_pull", { p_since: null });
+    const b = (res.blobs || []).find(x => x.id === rec.id);
+    return b ? fetchFull(kind, rec.id, b.nchunks) : null;
+  }
+
+  // First time this phone connects: combine both phones' data so nothing is lost
+  function merge(k, mine, theirs) {
+    if (mine == null) return theirs;
+    if (theirs == null) return mine;
+    if (k === "milestones" || k === "shopping" || k === "mission") return { ...theirs, ...mine };
+    if (k === "shoppingCustom") {
+      const out = { ...theirs };
+      Object.entries(mine).forEach(([cat, items]) => {
+        const seen = new Set((out[cat] || []).map(x => x.id));
+        out[cat] = [...(out[cat] || []), ...items.filter(x => !seen.has(x.id))];
+      });
+      return out;
+    }
+    if (k === "visits") {
+      const byId = new Map(theirs.map(v => [v.id, v]));
+      mine.forEach(v => { const o = byId.get(v.id); if (!o || JSON.stringify(v).length >= JSON.stringify(o).length) byId.set(v.id, v); });
+      return [...byId.values()];
+    }
+    if (k === "letter") {
+      const a = (mine.text || "").trim(), b = (theirs.text || "").trim();
+      if (!a) return theirs; if (!b || a === b || a.includes(b)) return mine; if (b.includes(a)) return theirs;
+      return { text: `${b}\n\n— ♡ —\n\n${a}`, at: Math.max(mine.at || 0, theirs.at || 0) };
+    }
+    return theirs;  // settings: the shared value wins
+  }
+
+  async function pull() {
+    if (!code || pulling) return;
+    pulling = true;
+    try {
+      const first = !meta.get("since", null);
+      const res = await call("fam_pull", { p_since: first ? null : meta.get("since") });
+      const d = dirty();
+      const touched = new Set();
+      for (const row of res.kv || []) {
+        if (!SYNCED.includes(row.key)) continue;   // ignore anything that isn't part of the journal
+        if (first) {
+          const mine = store.get(row.key, null), merged = merge(row.key, mine, row.value);
+          writeLocal(row.key, merged);
+          if (JSON.stringify(merged) !== JSON.stringify(row.value)) d.add(row.key);
+          touched.add(row.key);
+        } else if (!d.has(row.key)) {        // our own unsent change wins until it's sent
+          writeLocal(row.key, row.value); touched.add(row.key);
+        }
+      }
+      if (first) {
+        // everything this phone had that the shared journal doesn't
+        SYNCED.forEach(k => { if (!(res.kv || []).some(r => r.key === k) && localStorage.getItem(KEY + k) !== null) d.add(k); });
+      }
+      setDirty(d);
+      let photos = false, files = false;
+      for (const b of res.blobs || []) {
+        if (!b.id || b.id.startsWith("__") || (b.kind !== "photo" && b.kind !== "file")) continue;
+        if (queue().some(j => j.id === b.id && j.op === "del")) continue;   // we're deleting it
+        try { if (await applyBlob(b)) { if (b.kind === "file") files = true; else photos = true; } }
+        catch (e) { console.warn("Sync: couldn't apply", b.id, e); }
+      }
+      if (first) {
+        const remote = new Set((res.blobs || []).map(b => b.id));
+        gallery.photos.forEach(p => { if (!remote.has(p.id)) enqueue({ op: "up", id: p.id, kind: "photo" }); });
+        visitFiles.list.forEach(f => { if (!remote.has(f.id)) enqueue({ op: "up", id: f.id, kind: "file" }); });
+      }
+      if (photos) { sortPhotos(); touched.add("photos"); }
+      if (files) touched.add("files");
+      touched.forEach(redraw);
+      meta.set("since", res.now);
+      state.error = ""; markSynced();
+    } catch (e) { fail(e); }
+    finally { pulling = false; paint(); }
+    if (dirty().size) push();
+    if (queue().length) pump();
+  }
+
+  function markSynced() { state.last = Date.now(); meta.set("last", state.last); }
+
+  function schedule() {
+    clearInterval(pullTimer);
+    if (!code) return;
+    pullTimer = setInterval(() => { if (document.visibilityState === "visible") pull(); }, 8000);
+  }
+
+  /* ---- connecting ---- */
+  async function connect(newCode) {
+    newCode = String(newCode || "").trim().toLowerCase();
+    if (!newCode) return false;
+    state.error = ""; state.busy = true; paint();
+    try {
+      await rpc("fam_check", { p_code: newCode });
+    } catch (e) {
+      state.busy = false;
+      state.error = e.code === "wrong_code" ? "That code isn't right — check the spelling."
+        : e.code === "too_many_attempts" ? "Too many wrong codes were tried. Wait 15 minutes and try again."
+        : "Couldn't reach the shared journal. Check the internet and try again.";
+      paint(); return false;
+    }
+    code = newCode; meta.set("code", code); meta.set("since", null);
+    state.busy = false;
+    try { localStorage.setItem(KEY + "sync.prompt", "1"); } catch {}
+    schedule(); await pull();
+    toast("Connected — this phone now syncs ❤️");
+    return true;
+  }
+  function disconnect(silent) {
+    code = null; clearInterval(pullTimer);
+    ["code", "since", "up"].forEach(k => meta.set(k, null));
+    if (!silent) toast("This phone no longer syncs. Everything stays saved here.");
+    paint();
+  }
+
+  /* ---- the settings card + first-visit prompt ---- */
+  function paint() {
+    const box = $("#syncBox"); if (!box) return;
+    const on = !!code;
+    $("#syncOff").hidden = on; $("#syncOn").hidden = !on;
+    const n = waiting();
+    const when = state.last ? new Date(state.last).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "";
+    $("#syncStatus").textContent = on
+      ? (state.busy || pushing || pumping ? "Syncing…" : n ? `${n} ${n === 1 ? "change" : "changes"} waiting to sync` : `Up to date${when ? " · " + when : ""}`)
+      : "";
+    $("#syncError").textContent = state.error; $("#syncError").hidden = !state.error;
+    $("#syncConnect").disabled = state.busy;
+    const dot = $("#syncDot"); if (dot) dot.dataset.state = !on ? "off" : state.error ? "warn" : "on";
+    const prompt = $("#syncPrompt");
+    if (prompt) prompt.hidden = on || localStorage.getItem(KEY + "sync.prompt") === "1";
+    const note = $("#albumStorage");
+    if (note && on && gallery.ready) note.textContent = `${gallery.photos.length} ${gallery.photos.length === 1 ? "photo" : "photos"} · shared between both phones.`;
+  }
+
+  function init() {
+    syncHook = keyChanged;
+    // Photos and visit files: tell sync when they're saved or deleted here
+    [["photo", photoDB], ["file", fileDB]].forEach(([kind, db]) => {
+      const put = db.put, del = db.del;
+      raw[kind] = { put, del };
+      db.put = (rec) => put(rec).then(r => { blobChanged(kind, rec); return r; });
+      db.del = (id) => del(id).then(r => { blobDeleted(kind, id); return r; });
+    });
+    // A link like …/#family=your-code connects this phone in one tap
+    const fromLink = () => {
+      const m = /(?:^|[#&])family=([^&]+)/.exec(location.hash);
+      if (!m) return false;
+      history.replaceState(null, "", location.pathname + location.search);
+      connect(decodeURIComponent(m[1]));
+      return true;
+    };
+    const linked = fromLink();
+    addEventListener("hashchange", fromLink);
+    $("#syncForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (await connect($("#syncCode").value)) $("#syncCode").value = "";
+    });
+    $("#syncNow").addEventListener("click", () => { pull(); });
+    $("#syncLeave").addEventListener("click", () => { if (confirm("Stop syncing on this phone? Everything already here stays saved.")) disconnect(); });
+    $("#syncPromptGo").addEventListener("click", () => { $("#openSettings").click(); setTimeout(() => $("#syncCode").focus(), 350); });
+    $("#syncPromptX").addEventListener("click", () => { try { localStorage.setItem(KEY + "sync.prompt", "1"); } catch {} paint(); });
+    addEventListener("online", () => { if (code) { pull(); } });
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && code) pull(); });
+    addEventListener("pagehide", () => { if (code && dirty().size) push(); });
+    paint();
+    if (code && !linked) { schedule(); pull(); }
+  }
+
+  return { init, connect, disconnect, ensureFull, pull, get connected() { return !!code; } };
+})();
 
 /* ---------- Navigation ---------- */
 function initNav() {
@@ -1701,13 +2131,14 @@ function init() {
   initPrep();
   initMission();
   initLetter();
-  initMemories();
+  const photosReady = initMemories();
   noteOfDay();
   initSettings();
   initNav();
+  Promise.all([photosReady, visitFiles.ready]).catch(() => {}).then(() => Sync.init());
 
   // Expose a tiny API for testing in the browser console
-  window.BabyAdel = { CONFIG, pregnancy, getDueDate, getGender, WEEKS, fruitSVG };
+  window.BabyAdel = { CONFIG, pregnancy, getDueDate, getGender, WEEKS, fruitSVG, Sync };
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();

@@ -424,7 +424,7 @@
 <footer class="footer">
   <svg class="footer__feet" aria-hidden="true"><use href="#i-feet"/></svg>
   <p class="footer__line">Made with love by <span data-bind="father">Mohamed</span>, for <span data-bind="mother">Marwa</span> — and for you, little one.</p>
-  <p class="footer__small">Private family journal · no tracking, no ads · what you save stays on this device.</p>
+  <p class="footer__small">Private family journal · no tracking, no ads · shared only between our two phones.</p>
 </footer>
 
 <!-- ============ SETTINGS SHEET ============ -->
@@ -451,9 +451,30 @@
       </div>
     </div>
 
+    <div class="field sync" id="syncBox">
+      <span class="field__label"><span class="sync__dot" id="syncDot" data-state="off" aria-hidden="true"></span>Sync between phones</span>
+      <div id="syncOff">
+        <p class="field__help">Enter your family code once on each phone. Then ticks, letters, visits and photos are shared between <span data-bind="father">Mohamed</span>'s and <span data-bind="mother">Marwa</span>'s phones.</p>
+        <form class="sync__form" id="syncForm" autocomplete="off">
+          <label class="sr-only" for="syncCode">Family code</label>
+          <input id="syncCode" type="text" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Family code" required>
+          <button class="btn" id="syncConnect" type="submit">Connect</button>
+        </form>
+      </div>
+      <div id="syncOn" hidden>
+        <p class="sync__status" id="syncStatus">Up to date</p>
+        <p class="field__help">This phone is connected. Anything either of you adds shows up on the other phone within a few seconds — and keeps working offline.</p>
+        <div class="field__row">
+          <button class="btn btn--ghost btn--sm" id="syncNow" type="button">Sync now</button>
+          <button class="btn btn--text" id="syncLeave" type="button">Stop syncing on this phone</button>
+        </div>
+      </div>
+      <p class="sync__error" id="syncError" role="alert" hidden></p>
+    </div>
+
     <div class="field">
-      <span class="field__label">Move your saved data between phones</span>
-      <p class="field__help">Saved ticks, letters and photos live only in this browser. To copy them to the other phone, download a backup here and open it there.</p>
+      <span class="field__label">Backup</span>
+      <p class="field__help">Download everything (ticks, letters, visits and photos) as one file to keep safe, or restore it later.</p>
       <div class="field__row">
         <button class="btn btn--ghost" id="exportData"><svg><use href="#i-download"/></svg>Download backup</button>
         <label class="btn btn--ghost" for="importData"><svg><use href="#i-plus"/></svg>Restore backup</label>
@@ -514,6 +535,13 @@
     <button class="btn btn--text" id="msRemove" hidden>Clear this milestone</button>
   </div>
 </div>
+
+<aside class="sync-prompt" id="syncPrompt" hidden>
+  <svg aria-hidden="true"><use href="#i-heart"/></svg>
+  <p><b>Sync both phones</b><span>Same ticks, letters and photos on each.</span></p>
+  <button class="btn btn--sm" id="syncPromptGo" type="button">Connect</button>
+  <button class="icon-btn" id="syncPromptX" type="button" aria-label="Not now"><svg><use href="#i-close"/></svg></button>
+</aside>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="confetti" id="confetti" aria-hidden="true"></div>
