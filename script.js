@@ -709,13 +709,28 @@ function confetti() {
 /* ---------- Week journey ---------- */
 let selectedWeek = 7;
 const NO_DATE = { timelineWeek: 7, week: -1 };
+// Calendar dates of a pregnancy week: it starts on day w×7 and ends 6 days later.
+function weekRange(p, w) {
+  if (!p || !p.due) return null;
+  const start = weekStart(p, w);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+  return { start, end };
+}
+const shortDay = (d) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+function rangeText(r) {
+  const sameYear = r.start.getFullYear() === r.end.getFullYear();
+  const a = r.start.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) });
+  const b = r.end.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  return `${a} – ${b}`;
+}
 function renderWeekStrip() {
   const p = pregnancy() || NO_DATE;
   const strip = $("#weekStrip");
   strip.innerHTML = WEEKS.map(w => {
+    const r = weekRange(pregnancy(), w.w);
     const sep = w.w === 14 ? `<span class="tri-sep">2nd tri</span>` : w.w === 28 ? `<span class="tri-sep">3rd tri</span>` : "";
     const cls = [w.w < p.timelineWeek ? "is-past" : "", w.w === p.timelineWeek && p.week >= 7 && p.week <= 40 ? "is-current" : ""].join(" ");
-    return `${sep}<button role="tab" class="${cls}" data-week="${w.w}" aria-selected="false" aria-label="Week ${w.w}${w.w === p.timelineWeek ? ", this week" : ""}"><small>wk</small><b>${w.w}</b></button>`;
+    return `${sep}<button role="tab" class="${cls}" data-week="${w.w}" aria-selected="false" aria-label="Week ${w.w}${w.w === p.timelineWeek ? ", this week" : ""}${r ? ", " + rangeText(r) : ""}"><small>wk</small><b>${w.w}</b>${r ? `<i>${shortDay(r.start)}</i>` : ""}</button>`;
   }).join("");
 }
 function showWeek(w, scroll = true) {
@@ -730,6 +745,15 @@ function showWeek(w, scroll = true) {
   const isNow = w === p.timelineWeek && p.week >= 7 && p.week <= 40;
   $("#weekHere").hidden = !isNow;
   $("#weekNum").textContent = w;
+  const r = weekRange(pregnancy(), w);
+  const dates = $("#weekDates");
+  dates.hidden = !r;
+  if (r) {
+    const today = startOfToday(), left = calendarDaysBetween(today, r.end);
+    const tag = today < r.start ? `starts in ${calendarDaysBetween(today, r.start)} ${calendarDaysBetween(today, r.start) === 1 ? "day" : "days"}`
+      : left >= 0 ? (left === 0 ? "last day today" : `${left} ${left === 1 ? "day" : "days"} left`) : "";
+    dates.innerHTML = `<svg aria-hidden="true"><use href="#i-calendar"/></svg><span>${esc(rangeText(r))}</span>${tag ? `<em>${esc(tag)}</em>` : ""}`;
+  }
   $("#weekTri").textContent = w < 14 ? "First trimester" : w < 28 ? "Second trimester" : "Third trimester";
   $("#weekSize").textContent = `${isNow ? "Your little one is" : w < p.week ? "Baby was" : "Baby will be"} around the size of ${entry.name}.`;
   const extra = WEEK_EXTRA[w] || {};
